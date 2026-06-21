@@ -1,0 +1,1232 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:rejabon_ai/core/constants/app_strings.dart';
+import 'package:rejabon_ai/core/database/schemas/goal_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/habit_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/journal_entry_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/study_session_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/study_subject_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/workout_entity.dart';
+import 'package:rejabon_ai/core/providers/repository_providers.dart';
+import 'package:rejabon_ai/core/theme/app_colors.dart';
+import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
+import 'package:rejabon_ai/core/utils/date_format.dart';
+import 'package:rejabon_ai/shared/widgets/app_button.dart';
+import 'package:rejabon_ai/shared/widgets/app_card.dart';
+import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
+import 'package:rejabon_ai/shared/widgets/emoji_picker_field.dart';
+import 'package:rejabon_ai/shared/widgets/module_screen.dart';
+
+class LifeHubScreen extends StatelessWidget {
+  const LifeHubScreen({super.key});
+
+  static const _items = [
+    (
+      title: AppStrings.habits,
+      route: '/hayot/odatlar',
+      icon: Icons.repeat_rounded,
+    ),
+    (
+      title: AppStrings.goals,
+      route: '/hayot/maqsadlar',
+      icon: Icons.flag_outlined,
+    ),
+    (
+      title: AppStrings.journal,
+      route: '/hayot/kundalik',
+      icon: Icons.menu_book_outlined,
+    ),
+    (
+      title: AppStrings.workout,
+      route: '/hayot/mashq',
+      icon: Icons.fitness_center_outlined,
+    ),
+    (
+      title: AppStrings.study,
+      route: '/hayot/ta\'lim',
+      icon: Icons.school_outlined,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ModuleScreen(
+      title: AppStrings.lifeHub,
+      body: ListView.separated(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        itemCount: _items.length,
+        separatorBuilder: (context, index) =>
+            const SizedBox(height: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          return AppCard(
+            onTap: () => context.push(item.route),
+            child: Row(
+              children: [
+                Icon(item.icon, color: AppColors.primary),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Habits ──────────────────────────────────────────────────────────────────
+
+class HabitsScreen extends ConsumerWidget {
+  const HabitsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final habitsAsync = ref.watch(habitsProvider);
+    final statsAsync = ref.watch(habitStatisticsProvider);
+    final repo = ref.read(habitRepositoryProvider);
+
+    return ModuleScreen(
+      title: AppStrings.habits,
+      showBackButton: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showHabitDialog(context, ref),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: habitsAsync.when(
+        loading: () => const AppLoadingState(),
+        error: (e, _) => AppErrorState(
+          onRetry: () => ref.invalidate(habitsProvider),
+        ),
+        data: (habits) {
+          if (habits.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.repeat_rounded,
+              title: AppStrings.noHabits,
+              description: AppStrings.noHabitsDesc,
+              actionLabel: AppStrings.newHabit,
+              onAction: () => _showHabitDialog(context, ref),
+            );
+          }
+          final stats = statsAsync.valueOrNull;
+          return ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: habits.length + (stats != null ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (stats != null && index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: AppCard(
+                    variant: AppCardVariant.filled,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppStrings.statistics,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MiniStat(
+                                label: AppStrings.weeklyStats,
+                                value:
+                                    '${stats.weeklyCompletionRate.round()}%',
+                              ),
+                            ),
+                            Expanded(
+                              child: _MiniStat(
+                                label: AppStrings.monthlyStats,
+                                value:
+                                    '${stats.monthlyCompletionRate.round()}%',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _MiniStat(
+                          label: AppStrings.longestStreak,
+                          value: '${stats.longestStreak} ${AppStrings.days}',
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final habitIndex = stats != null ? index - 1 : index;
+              final habit = habits[habitIndex];
+              final done = repo.isCompletedToday(habit);
+              final streak = habitStreak(habit);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AppCard(
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: done,
+                        activeColor: AppColors.primary,
+                        onChanged: (_) => repo.toggleToday(habit),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayWithEmoji(
+                                title: habit.name,
+                                emoji: habit.emoji,
+                              ),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.local_fire_department_rounded,
+                                  size: 16,
+                                  color: AppColors.warning,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$streak ${AppStrings.days}',
+                                  style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () =>
+                            _showHabitDialog(context, ref, habit: habit),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () async {
+                          if (!await confirmDelete(context)) return;
+                          await repo.delete(habit.id);
+                          if (context.mounted) showDeletedSnackBar(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showHabitDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    HabitEntity? habit,
+  }) async {
+    final nameCtrl = TextEditingController(text: habit?.name ?? '');
+    var emoji = habit?.emoji ?? '';
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+        title: Text(habit == null ? AppStrings.newHabit : AppStrings.editHabit),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(
+            controller: nameCtrl,
+            label: AppStrings.habitName,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+          ),
+              const SizedBox(height: AppSpacing.sm),
+              EmojiPickerField(
+                selected: emoji,
+                onSelected: (e) => setDialogState(() => emoji = e),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final repo = ref.read(habitRepositoryProvider);
+              if (habit != null) {
+                habit
+                  ..name = nameCtrl.text.trim()
+                  ..emoji = emoji;
+                await repo.save(habit);
+              } else {
+                await repo.save(
+                  HabitEntity.create(
+                    name: nameCtrl.text.trim(),
+                    emoji: emoji,
+                  ),
+                );
+              }
+              if (context.mounted) {
+                showSavedSnackBar(context);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text(AppStrings.save),
+          ),
+        ],
+        ),
+      ),
+    );
+    nameCtrl.dispose();
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+
+class GoalsScreen extends ConsumerWidget {
+  const GoalsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsAsync = ref.watch(goalsProvider);
+
+    return ModuleScreen(
+      title: AppStrings.goals,
+      showBackButton: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showGoalDialog(context, ref),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: goalsAsync.when(
+        loading: () => const AppLoadingState(),
+        error: (e, _) => AppErrorState(
+          onRetry: () => ref.invalidate(goalsProvider),
+        ),
+        data: (goals) {
+          if (goals.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.flag_outlined,
+              title: AppStrings.noGoals,
+              description: AppStrings.noGoalsDesc,
+              actionLabel: AppStrings.newGoal,
+              onAction: () => _showGoalDialog(context, ref),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: goals.length,
+            itemBuilder: (context, index) => _GoalCard(
+              goal: goals[index],
+              onEdit: () => _showGoalDialog(context, ref, goal: goals[index]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showGoalDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    GoalEntity? goal,
+  }) async {
+    final titleCtrl = TextEditingController(text: goal?.title ?? '');
+    final descCtrl = TextEditingController(text: goal?.description ?? '');
+    var emoji = goal?.emoji ?? '';
+    var progress = goal?.progress ?? 0.0;
+    DateTime? targetDate = goal?.targetDate;
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(goal == null ? AppStrings.newGoal : AppStrings.editGoal),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    controller: titleCtrl,
+                    label: AppStrings.goalTitle,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  EmojiPickerField(
+                    selected: emoji,
+                    onSelected: (e) => setDialogState(() => emoji = e),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppTextField(
+                    controller: descCtrl,
+                    label: AppStrings.description,
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text('${AppStrings.goalProgress}: ${progress.round()}%'),
+                  Slider(
+                    value: progress,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    label: '${progress.round()}%',
+                    onChanged: (v) => setDialogState(() => progress = v),
+                  ),
+                  ListTile(
+                    title: const Text(AppStrings.taskDueDate),
+                    subtitle: Text(
+                      targetDate != null
+                          ? AppDateFormat.formatDate(targetDate!)
+                          : 'Tanlanmagan',
+                    ),
+                    trailing: const Icon(Icons.calendar_today_outlined),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: targetDate ?? DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => targetDate = picked);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(AppStrings.cancel),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final repo = ref.read(goalRepositoryProvider);
+                if (goal != null) {
+                  goal
+                    ..title = titleCtrl.text.trim()
+                    ..emoji = emoji
+                    ..description = descCtrl.text.trim().isEmpty
+                        ? null
+                        : descCtrl.text.trim()
+                    ..progress = progress
+                    ..targetDate = targetDate;
+                  await repo.save(goal);
+                } else {
+                  await repo.save(
+                    GoalEntity.create(
+                      title: titleCtrl.text.trim(),
+                      emoji: emoji,
+                      description: descCtrl.text.trim().isEmpty
+                          ? null
+                          : descCtrl.text.trim(),
+                      progress: progress,
+                      targetDate: targetDate,
+                    ),
+                  );
+                }
+                if (context.mounted) {
+                  showSavedSnackBar(context);
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text(AppStrings.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    titleCtrl.dispose();
+    descCtrl.dispose();
+  }
+}
+
+class _GoalCard extends ConsumerWidget {
+  const _GoalCard({
+    required this.goal,
+    required this.onEdit,
+  });
+
+  final GoalEntity goal;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayWithEmoji(title: goal.title, emoji: goal.emoji),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: onEdit,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () async {
+                    if (!await confirmDelete(context)) return;
+                    await ref.read(goalRepositoryProvider).delete(goal.id);
+                    if (context.mounted) showDeletedSnackBar(context);
+                  },
+                ),
+              ],
+            ),
+            if (goal.description != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(goal.description!),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: LinearProgressIndicator(
+                      value: goal.progress / 100,
+                      minHeight: 8,
+                      backgroundColor: AppColors.primaryLight,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text('${goal.progress.round()}%'),
+              ],
+            ),
+            if (goal.targetDate != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${AppStrings.taskDueDate}: ${AppDateFormat.formatDate(goal.targetDate!)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              AppStrings.milestones,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            ...goal.milestones.map(
+              (m) => CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  m.title,
+                  style: TextStyle(
+                    decoration:
+                        m.isCompleted ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                value: m.isCompleted,
+                onChanged: (_) async {
+                  m.isCompleted = !m.isCompleted;
+                  final completed =
+                      goal.milestones.where((ms) => ms.isCompleted).length;
+                  goal.progress = goal.milestones.isEmpty
+                      ? goal.progress
+                      : (completed / goal.milestones.length) * 100;
+                  await ref.read(goalRepositoryProvider).save(goal);
+                },
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _addMilestone(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(AppStrings.addMilestone),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addMilestone(BuildContext context, WidgetRef ref) async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.addMilestone),
+        content: AppTextField(controller: ctrl, label: AppStrings.goalTitle),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text(AppStrings.add),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result != null && result.isNotEmpty) {
+      goal.milestones.add(MilestoneEmbedded.create(title: result));
+      await ref.read(goalRepositoryProvider).save(goal);
+      if (context.mounted) showSavedSnackBar(context);
+    }
+  }
+}
+
+// ── Journal ─────────────────────────────────────────────────────────────────
+
+class JournalScreen extends ConsumerStatefulWidget {
+  const JournalScreen({super.key});
+
+  @override
+  ConsumerState<JournalScreen> createState() => _JournalScreenState();
+}
+
+class _JournalScreenState extends ConsumerState<JournalScreen> {
+  DateTime _selectedDate = AppDateFormat.dateOnly(DateTime.now());
+  final _contentCtrl = TextEditingController();
+  int _mood = 3;
+  bool _loading = true;
+  JournalEntryEntity? _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntry();
+  }
+
+  Future<void> _loadEntry() async {
+    setState(() => _loading = true);
+    final entry =
+        await ref.read(journalRepositoryProvider).getByDate(_selectedDate);
+    _entry = entry;
+    _contentCtrl.text = entry?.content ?? '';
+    _mood = entry?.mood ?? 3;
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  void dispose() {
+    _contentCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _changeDate(int days) async {
+    setState(() {
+      _selectedDate = _selectedDate.add(Duration(days: days));
+    });
+    await _loadEntry();
+  }
+
+  Future<void> _save() async {
+    late JournalEntryEntity entry;
+    if (_entry != null) {
+      entry = _entry!
+        ..content = _contentCtrl.text.trim()
+        ..mood = _mood;
+    } else {
+      entry = JournalEntryEntity.create(
+        date: _selectedDate,
+        content: _contentCtrl.text.trim(),
+        mood: _mood,
+      );
+    }
+    await ref.read(journalRepositoryProvider).save(entry);
+    _entry = entry;
+    if (mounted) showSavedSnackBar(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ModuleScreen(
+      title: AppStrings.journal,
+      showBackButton: true,
+      body: _loading
+          ? const AppLoadingState()
+          : ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                AppCard(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        onPressed: () => _changeDate(-1),
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            AppDateFormat.formatDate(_selectedDate),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (AppDateFormat.isToday(_selectedDate))
+                            Text(
+                              AppStrings.today,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.primary),
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        onPressed: () => _changeDate(1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  AppStrings.mood,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(5, (i) {
+                    final mood = i + 1;
+                    final selected = _mood == mood;
+                    return GestureDetector(
+                      onTap: () => setState(() => _mood = mood),
+                      child: Column(
+                        children: [
+                          Text(
+                            moodEmoji(mood),
+                            style: TextStyle(
+                              fontSize: selected ? 32 : 24,
+                            ),
+                          ),
+                          Text(
+                            moodLabel(mood),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: selected
+                                  ? AppColors.primary
+                                  : Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color,
+                              fontWeight:
+                                  selected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _contentCtrl,
+                  label: AppStrings.noteContent,
+                  maxLines: 8,
+                  minLines: 4,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  label: AppStrings.save,
+                  isExpanded: true,
+                  onPressed: _save,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// ── Workout ─────────────────────────────────────────────────────────────────
+
+class WorkoutScreen extends ConsumerWidget {
+  const WorkoutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workoutsAsync = ref.watch(workoutsProvider);
+    final statsAsync = ref.watch(workoutStatisticsProvider);
+
+    return ModuleScreen(
+      title: AppStrings.workout,
+      showBackButton: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showWorkoutDialog(context, ref),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: workoutsAsync.when(
+        loading: () => const AppLoadingState(),
+        error: (e, _) => AppErrorState(
+          onRetry: () => ref.invalidate(workoutsProvider),
+        ),
+        data: (workouts) {
+          if (workouts.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.fitness_center_outlined,
+              title: AppStrings.noWorkouts,
+              description: AppStrings.noWorkoutsDesc,
+              actionLabel: AppStrings.newWorkout,
+              onAction: () => _showWorkoutDialog(context, ref),
+            );
+          }
+          final stats = statsAsync.valueOrNull;
+          return ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            children: [
+              if (stats != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: AppCard(
+                    variant: AppCardVariant.filled,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppStrings.statistics,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MiniStat(
+                                label: AppStrings.totalSessions,
+                                value: '${stats.totalSessions}',
+                              ),
+                            ),
+                            Expanded(
+                              child: _MiniStat(
+                                label: AppStrings.thisWeek,
+                                value: '${stats.thisWeekSessions}',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          '${stats.totalMinutes} daq · ${stats.totalCalories} kcal',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Text(
+                AppStrings.workoutHistory,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ...workouts.map(
+                (w) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: AppCard(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                w.exerciseName,
+                                style:
+                                    Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                '${AppDateFormat.formatDate(w.date)} · ${w.durationMinutes} daq · ${w.caloriesBurned} kcal',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () async {
+                            if (!await confirmDelete(context)) return;
+                            await ref
+                                .read(workoutRepositoryProvider)
+                                .delete(w.id);
+                            if (context.mounted) showDeletedSnackBar(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showWorkoutDialog(BuildContext context, WidgetRef ref) async {
+    final nameCtrl = TextEditingController();
+    final durationCtrl = TextEditingController();
+    final caloriesCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.newWorkout),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(
+                controller: nameCtrl,
+                label: AppStrings.exerciseName,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppTextField(
+                controller: durationCtrl,
+                label: AppStrings.duration,
+                keyboardType: TextInputType.number,
+                validator: (v) =>
+                    v == null || int.tryParse(v) == null ? 'Raqam kiriting' : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppTextField(
+                controller: caloriesCtrl,
+                label: AppStrings.calories,
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              await ref.read(workoutRepositoryProvider).save(
+                    WorkoutEntity.create(
+                      exerciseName: nameCtrl.text.trim(),
+                      durationMinutes: int.parse(durationCtrl.text),
+                      caloriesBurned:
+                          int.tryParse(caloriesCtrl.text) ?? 0,
+                    ),
+                  );
+              if (context.mounted) {
+                showSavedSnackBar(context);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text(AppStrings.save),
+          ),
+        ],
+      ),
+    );
+    nameCtrl.dispose();
+    durationCtrl.dispose();
+    caloriesCtrl.dispose();
+  }
+}
+
+// ── Study ─────────────────────────────────────────────────────────────────────
+
+class StudyScreen extends ConsumerWidget {
+  const StudyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjectsAsync = ref.watch(studySubjectsProvider);
+    final sessionsAsync = ref.watch(studySessionsProvider);
+
+    return ModuleScreen(
+      title: AppStrings.study,
+      showBackButton: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showSubjectDialog(context, ref),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: subjectsAsync.when(
+        loading: () => const AppLoadingState(),
+        error: (e, _) => AppErrorState(
+          onRetry: () => ref.invalidate(studySubjectsProvider),
+        ),
+        data: (subjects) {
+          if (subjects.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.school_outlined,
+              title: AppStrings.noStudy,
+              description: AppStrings.noStudyDesc,
+              actionLabel: AppStrings.newSubject,
+              onAction: () => _showSubjectDialog(context, ref),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            children: [
+              Text(
+                AppStrings.subjects,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ...subjects.map(
+                (s) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                s.name,
+                                style:
+                                    Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.play_circle_outline),
+                              tooltip: AppStrings.studySession,
+                              onPressed: () =>
+                                  _showSessionDialog(context, ref, s),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                if (!await confirmDelete(context)) return;
+                                await ref
+                                    .read(studyRepositoryProvider)
+                                    .deleteSubject(s.id);
+                                if (context.mounted) {
+                                  showDeletedSnackBar(context);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.sm),
+                                child: LinearProgressIndicator(
+                                  value: s.targetMinutes > 0
+                                      ? (s.totalMinutes / s.targetMinutes)
+                                          .clamp(0.0, 1.0)
+                                      : 0,
+                                  minHeight: 6,
+                                  color: Color(s.color),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text('${s.totalMinutes} daq'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                AppStrings.studySession,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              sessionsAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (sessions) {
+                  if (sessions.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    children: sessions.take(10).map((session) {
+                      final subjectMatches =
+                          subjects.where((s) => s.id == session.subjectId);
+                      final subjectName = subjectMatches.isEmpty
+                          ? 'Fan'
+                          : subjectMatches.first.name;
+                      return ListTile(
+                        leading: const Icon(Icons.timer_outlined),
+                        title: Text(subjectName),
+                        subtitle: Text(
+                          '${AppDateFormat.formatDate(session.date)} · ${session.durationMinutes} daq',
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showSubjectDialog(BuildContext context, WidgetRef ref) async {
+    final nameCtrl = TextEditingController();
+    final targetCtrl = TextEditingController(text: '60');
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.newSubject),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(
+                controller: nameCtrl,
+                label: AppStrings.subjects,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppTextField(
+                controller: targetCtrl,
+                label: 'Maqsad (daq)',
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              await ref.read(studyRepositoryProvider).saveSubject(
+                    StudySubjectEntity.create(
+                      name: nameCtrl.text.trim(),
+                      targetMinutes: int.tryParse(targetCtrl.text) ?? 60,
+                    ),
+                  );
+              if (context.mounted) {
+                showSavedSnackBar(context);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text(AppStrings.save),
+          ),
+        ],
+      ),
+    );
+    nameCtrl.dispose();
+    targetCtrl.dispose();
+  }
+
+  Future<void> _showSessionDialog(
+    BuildContext context,
+    WidgetRef ref,
+    StudySubjectEntity subject,
+  ) async {
+    final durationCtrl = TextEditingController(text: '30');
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${AppStrings.studySession}: ${subject.name}'),
+        content: Form(
+          key: formKey,
+          child: AppTextField(
+            controller: durationCtrl,
+            label: AppStrings.duration,
+            keyboardType: TextInputType.number,
+            validator: (v) =>
+                v == null || int.tryParse(v) == null ? 'Raqam kiriting' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              await ref.read(studyRepositoryProvider).addSession(
+                    StudySessionEntity.create(
+                      subjectId: subject.id,
+                      durationMinutes: int.parse(durationCtrl.text),
+                    ),
+                  );
+              if (context.mounted) {
+                showSavedSnackBar(context);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text(AppStrings.save),
+          ),
+        ],
+      ),
+    );
+    durationCtrl.dispose();
+  }
+}
