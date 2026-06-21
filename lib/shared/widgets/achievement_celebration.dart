@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/repository_providers.dart';
+import '../../features/gamification/domain/achievement_service.dart';
+import '../../features/gamification/presentation/providers/gamification_providers.dart';
 import 'app_feedback.dart';
 
-/// Unlocked achievements celebrated this session.
-final _celebratedAchievementIds = <String>{};
-var _initialized = false;
-
+/// Yangi ochilgan yutuqlarni nishonlaydi (doimiy saqlangan).
 Future<void> celebrateNewAchievements(
   WidgetRef ref,
   BuildContext context,
@@ -17,28 +15,26 @@ Future<void> celebrateNewAchievements(
   final achievements = await ref.read(achievementsProvider.future);
   if (!context.mounted) return;
 
-  if (!_initialized) {
-    for (final achievement in achievements.where((a) => a.unlocked)) {
-      _celebratedAchievementIds.add(achievement.id);
-    }
-    _initialized = true;
-    return;
-  }
+  final unlockRepo = ref.read(achievementUnlockRepositoryProvider);
+  final uncelebrated = await unlockRepo.getUncelebrated();
 
-  for (final achievement in achievements) {
-    if (!achievement.unlocked) continue;
-    if (_celebratedAchievementIds.contains(achievement.id)) continue;
-    _celebratedAchievementIds.add(achievement.id);
+  for (final unlock in uncelebrated) {
+    Achievement? achievement;
+    for (final a in achievements) {
+      if (a.id == unlock.achievementId) {
+        achievement = a;
+        break;
+      }
+    }
+    if (achievement == null || !achievement.unlocked) continue;
     if (!context.mounted) return;
     showAchievementSnackBar(
       context,
       emoji: achievement.emoji,
       title: achievement.title,
     );
+    await unlockRepo.markCelebrated(unlock.achievementId);
   }
 }
 
-void resetAchievementCelebrations() {
-  _celebratedAchievementIds.clear();
-  _initialized = false;
-}
+void resetAchievementCelebrations() {}

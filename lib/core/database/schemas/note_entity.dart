@@ -16,6 +16,17 @@ class NoteEntity {
 
   List<String> tags = [];
 
+  /// note | link | learning | audio_ref
+  late String itemType;
+
+  String? sourceUrl;
+
+  late String category;
+
+  List<String> lifeAreaIds = [];
+
+  late bool isFavorite;
+
   @Index()
   late DateTime createdAt;
 
@@ -28,6 +39,11 @@ class NoteEntity {
     this.emoji = '',
     required this.content,
     List<String>? tags,
+    this.itemType = 'note',
+    this.sourceUrl,
+    this.category = 'umumiy',
+    this.lifeAreaIds = const [],
+    this.isFavorite = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : tags = tags ?? [],
@@ -40,6 +56,11 @@ class NoteEntity {
         'emoji': emoji,
         'content': content,
         'tags': tags,
+        'itemType': itemType,
+        'sourceUrl': sourceUrl,
+        'category': category,
+        'lifeAreaIds': lifeAreaIds,
+        'isFavorite': isFavorite,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -50,6 +71,12 @@ class NoteEntity {
       emoji: json['emoji'] as String? ?? '',
       content: json['content'] as String,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+      itemType: json['itemType'] as String? ?? 'note',
+      sourceUrl: json['sourceUrl'] as String?,
+      category: json['category'] as String? ?? 'umumiy',
+      lifeAreaIds:
+          (json['lifeAreaIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      isFavorite: json['isFavorite'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );

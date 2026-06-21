@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/intelligence/coach_context_providers.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../domain/ai_coach_service.dart';
@@ -18,7 +19,10 @@ final aiCoachServiceProvider = Provider<AiCoachService>((ref) {
 
 final aiTipsProvider = FutureProvider<List<AiTip>>((ref) async {
   final service = ref.watch(aiCoachServiceProvider);
-  return service.generateRecommendations();
+  final context = ref.watch(coachContextProvider);
+  return service.generateRecommendations(
+    coachContextBlock: formatCoachContextBlock(context),
+  );
 });
 
 final aiTipsRefreshProvider = Provider<void Function()>((ref) {

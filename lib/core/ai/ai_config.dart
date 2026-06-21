@@ -186,36 +186,86 @@ class AiConfig {
     return fromMap(env);
   }
 
-  static const aiEnvAssetPath = 'assets/ai.env';
+  static const aiEnvAssetPath = 'assets/ai.env.example';
 
   static Future<Map<String, String>> loadEnvMap({String? envPath}) async {
-    try {
-      final content = await rootBundle.loadString(aiEnvAssetPath);
-      final parsed = parseEnvFile(content);
-      if (_hasAiKeys(parsed)) {
-        return parsed;
-      }
-    } catch (_) {}
+    // Release + debug: compile-time --dart-define keys (production path).
+    final dartDefine = _loadDartDefineEnv();
+    if (_hasAiKeys(dartDefine)) return dartDefine;
 
-    if (!kIsWeb) {
-      try {
-        final path = envPath ?? '.env';
-        final file = File(path);
-        if (await file.exists()) {
-          final parsed = parseEnvFile(await file.readAsString());
-          if (_hasAiKeys(parsed)) {
-            return parsed;
+    if (!kReleaseMode) {
+      if (!kIsWeb) {
+        try {
+          final path = envPath ?? '.env';
+          final file = File(path);
+          if (await file.exists()) {
+            final parsed = parseEnvFile(await file.readAsString());
+            if (_hasAiKeys(parsed)) return parsed;
           }
-        }
+        } catch (_) {}
+      }
+
+      try {
+        final content = await rootBundle.loadString(aiEnvAssetPath);
+        final parsed = parseEnvFile(content);
+        if (_hasAiKeys(parsed)) return parsed;
       } catch (_) {}
     }
 
-    final platformEnv = Map<String, String>.from(Platform.environment);
-    if (_hasAiKeys(platformEnv)) {
-      return platformEnv;
+    if (!kIsWeb) {
+      final platformEnv = Map<String, String>.from(Platform.environment);
+      if (_hasAiKeys(platformEnv)) return platformEnv;
     }
 
-    return platformEnv;
+    return dartDefine;
+  }
+
+  /// Reads `--dart-define=KEY=value` compile-time constants.
+  @visibleForTesting
+  static Map<String, String> loadDartDefineEnv() => _loadDartDefineEnv();
+
+  static Map<String, String> _loadDartDefineEnv() {
+    const scalarKeys = [
+      'AI_PROVIDER',
+      'AI_FALLBACK_ORDER',
+      'AI_REQUEST_TIMEOUT_MS',
+      'AI_MAX_RETRIES',
+      'AI_RETRY_DELAY_MS',
+      'BOT_DEBUG_LOGS',
+      'GEMINI_API_KEY',
+      'GEMINI_MODEL',
+      'GEMINI_MODEL_FALLBACKS',
+      'GEMINI_MAX_OUTPUT_TOKENS',
+      'OPENAI_API_KEY',
+      'OPENAI_MODEL',
+      'OPENROUTER_API_KEY',
+      'OPENROUTER_MODEL',
+      'OPENROUTER_HTTP_REFERER',
+      'OPENROUTER_X_TITLE',
+      'GROQ_API_KEY',
+      'GROQ_MODEL',
+      'CLOUDFLARE_API_KEY',
+      'CLOUDFLARE_API_TOKEN',
+      'CLOUDFLARE_ACCOUNT_ID',
+      'CLOUDFLARE_MODEL',
+    ];
+
+    final env = <String, String>{};
+    for (final key in scalarKeys) {
+      final value = String.fromEnvironment(key, defaultValue: '');
+      if (value.isNotEmpty) env[key] = value;
+    }
+
+    for (final prefix in ['GEMINI', 'OPENAI', 'OPENROUTER', 'GROQ', 'CLOUDFLARE']) {
+      for (var i = 2; i <= 20; i++) {
+        final key = '${prefix}_API_KEY_$i';
+        final value = String.fromEnvironment(key, defaultValue: '');
+        if (value.isEmpty) break;
+        env[key] = value;
+      }
+    }
+
+    return env;
   }
 
   static bool _hasAiKeys(Map<String, String> env) {
@@ -223,6 +273,7 @@ class AiConfig {
         env['OPENAI_API_KEY']?.isNotEmpty == true ||
         env['OPENROUTER_API_KEY']?.isNotEmpty == true ||
         env['GROQ_API_KEY']?.isNotEmpty == true ||
+        env['CLOUDFLARE_API_KEY']?.isNotEmpty == true ||
         env['CLOUDFLARE_API_TOKEN']?.isNotEmpty == true;
   }
 }

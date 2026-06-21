@@ -28,18 +28,23 @@ const PlanEntitySchema = CollectionSchema(
       type: IsarType.objectList,
       target: r'PlanItemEmbedded',
     ),
-    r'planDate': PropertySchema(
+    r'lifeAreaIds': PropertySchema(
       id: 2,
+      name: r'lifeAreaIds',
+      type: IsarType.stringList,
+    ),
+    r'planDate': PropertySchema(
+      id: 3,
       name: r'planDate',
       type: IsarType.dateTime,
     ),
     r'sourceText': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'sourceText',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -100,6 +105,13 @@ int _planEntityEstimateSize(
           PlanItemEmbeddedSchema.estimateSize(value, offsets, allOffsets);
     }
   }
+  bytesCount += 3 + object.lifeAreaIds.length * 3;
+  {
+    for (var i = 0; i < object.lifeAreaIds.length; i++) {
+      final value = object.lifeAreaIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.sourceText.length * 3;
   return bytesCount;
 }
@@ -117,9 +129,10 @@ void _planEntitySerialize(
     PlanItemEmbeddedSchema.serialize,
     object.items,
   );
-  writer.writeDateTime(offsets[2], object.planDate);
-  writer.writeString(offsets[3], object.sourceText);
-  writer.writeDateTime(offsets[4], object.updatedAt);
+  writer.writeStringList(offsets[2], object.lifeAreaIds);
+  writer.writeDateTime(offsets[3], object.planDate);
+  writer.writeString(offsets[4], object.sourceText);
+  writer.writeDateTime(offsets[5], object.updatedAt);
 }
 
 PlanEntity _planEntityDeserialize(
@@ -138,9 +151,10 @@ PlanEntity _planEntityDeserialize(
         PlanItemEmbedded(),
       ) ??
       [];
-  object.planDate = reader.readDateTime(offsets[2]);
-  object.sourceText = reader.readString(offsets[3]);
-  object.updatedAt = reader.readDateTime(offsets[4]);
+  object.lifeAreaIds = reader.readStringList(offsets[2]) ?? [];
+  object.planDate = reader.readDateTime(offsets[3]);
+  object.sourceText = reader.readString(offsets[4]);
+  object.updatedAt = reader.readDateTime(offsets[5]);
   return object;
 }
 
@@ -162,10 +176,12 @@ P _planEntityDeserializeProp<P>(
           ) ??
           []) as P;
     case 2:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 4:
+      return (reader.readString(offset)) as P;
+    case 5:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -654,6 +670,231 @@ extension PlanEntityQueryFilter
     });
   }
 
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lifeAreaIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'lifeAreaIds',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<PlanEntity, PlanEntity, QAfterFilterCondition> planDateEqualTo(
       DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -1033,6 +1274,12 @@ extension PlanEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<PlanEntity, PlanEntity, QDistinct> distinctByLifeAreaIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lifeAreaIds');
+    });
+  }
+
   QueryBuilder<PlanEntity, PlanEntity, QDistinct> distinctByPlanDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'planDate');
@@ -1071,6 +1318,13 @@ extension PlanEntityQueryProperty
       itemsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'items');
+    });
+  }
+
+  QueryBuilder<PlanEntity, List<String>, QQueryOperations>
+      lifeAreaIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lifeAreaIds');
     });
   }
 

@@ -222,7 +222,7 @@ class AiService {
 
   static String? _detectConfigSource(Map<String, String> env) {
     if (!_hasAnyKey(env)) return null;
-    return 'assets/ai.env';
+    return env.containsKey('GEMINI_API_KEY') ? 'dart-define/.env' : null;
   }
 
   static bool _hasAnyKey(Map<String, String> env) {

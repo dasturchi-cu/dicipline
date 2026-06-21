@@ -59,7 +59,9 @@ class AiCoachService {
   final PlanRepository _plans;
   final AiService? _aiService;
 
-  Future<List<AiTip>> generateRecommendations() async {
+  Future<List<AiTip>> generateRecommendations({
+    String? coachContextBlock,
+  }) async {
     final tasks = await _tasks.getAll();
     final habits = await _habits.getAll();
     final goals = await _goals.getAll();
@@ -85,6 +87,7 @@ class AiCoachService {
       journalToday: journalToday,
       todayPlan: todayPlan,
       existingTips: tips,
+      coachContextBlock: coachContextBlock,
     );
 
     if (llmTip != null) {
@@ -102,6 +105,7 @@ class AiCoachService {
     required JournalEntryEntity? journalToday,
     required PlanEntity? todayPlan,
     required List<AiTip> existingTips,
+    String? coachContextBlock,
   }) async {
     final ai = _aiService ?? AiService.instance;
     if (ai == null) return null;
@@ -132,6 +136,11 @@ class AiCoachService {
       ..writeln('- Past progress maqsadlar: $lowGoals')
       ..writeln('- Moliya balansi: ${balance.toStringAsFixed(0)} so\'m')
       ..writeln('- Kundalik: $journalStatus');
+
+    if (coachContextBlock != null && coachContextBlock.trim().isNotEmpty) {
+      context.writeln('\nLife Brain kontekst:');
+      context.writeln(coachContextBlock.trim());
+    }
 
     if (todayPlan != null && todayPlan.items.isNotEmpty) {
       final now = DateTime.now();
@@ -427,7 +436,7 @@ class AiCoachService {
           title: 'Salbiy balans',
           description:
               'Balansingiz ${balance.toStringAsFixed(0)} so\'m. Xarajatlarni ko\'rib chiqing va byudjet tuzing.',
-          actionRoute: '/moliya',
+          actionRoute: '/hayot/moliya',
         ),
       );
     }
@@ -448,7 +457,7 @@ class AiCoachService {
             title: 'Yuqori xarajat kategoriyasi',
             description:
                 '"${topEntry.key}" kategoriyasida ${topEntry.value.toStringAsFixed(0)} so\'m sarflangan. Cheklov qo\'yishni o\'ylab ko\'ring.',
-            actionRoute: '/moliya',
+            actionRoute: '/hayot/moliya',
           ),
         );
       }
@@ -460,7 +469,7 @@ class AiCoachService {
           title: 'Moliyani kuzatishni boshlang',
           description:
               'Daromad va xarajatlaringizni qayd eting — moliyaviy holatingizni yaxshiroq tushunasiz.',
-          actionRoute: '/moliya',
+          actionRoute: '/hayot/moliya',
         ),
       );
     }

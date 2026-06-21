@@ -32,6 +32,9 @@ class GoalRepository {
     String? description,
     double progress = 0,
     List<MilestoneEmbedded>? milestones,
+    List<String>? lifeAreaIds,
+    String? horizon,
+    int? parentGoalId,
     DateTime? targetDate,
   }) async {
     final goal = GoalEntity.create(
@@ -39,6 +42,9 @@ class GoalRepository {
       description: description,
       progress: progress.clamp(0, 100),
       milestones: milestones,
+      lifeAreaIds: lifeAreaIds ?? [],
+      horizon: horizon,
+      parentGoalId: parentGoalId,
       targetDate: targetDate,
     );
     await _isar.writeTxn(() async {

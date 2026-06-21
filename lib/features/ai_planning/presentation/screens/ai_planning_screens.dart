@@ -8,6 +8,7 @@ import '../../../../core/database/schemas/plan_entity.dart';
 import '../../../../core/notifications/plan_notification_helper.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/content_insets.dart';
 import '../../../../core/utils/date_format.dart';
 import '../../../../features/settings/presentation/providers/settings_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -86,7 +87,7 @@ class _AiPlanningScreenState extends ConsumerState<AiPlanningScreen>
     );
   }
 
-  Future<void> _generatePlan() async {
+  Future<void> _generatePlan({bool saveAfter = false}) async {
     final input = _inputController.text.trim();
     if (input.isEmpty) return;
 
@@ -96,15 +97,27 @@ class _AiPlanningScreenState extends ConsumerState<AiPlanningScreen>
 
     if (!mounted) return;
     final preview = ref.read(planPreviewProvider);
-    if (preview != null && preview.items.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (_tabController.index != 1) {
-          _tabController.animateTo(1);
-        }
-      });
+    if (preview == null || preview.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(AppStrings.planSaveFailed)),
+      );
+      return;
     }
+
+    if (saveAfter) {
+      await _confirmPlan();
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_tabController.index != 1) {
+        _tabController.animateTo(1);
+      }
+    });
   }
+
+  Future<void> _generateAndSavePlan() => _generatePlan(saveAfter: true);
 
   Future<void> _confirmPlan() async {
     if (_confirming) return;
@@ -200,7 +213,8 @@ class _AiPlanningScreenState extends ConsumerState<AiPlanningScreen>
                   generating: generating || planningState.isLoading,
                   onVoice: _toggleVoice,
                   onPaste: _pasteFromClipboard,
-                  onGenerate: _generatePlan,
+                  onGenerate: () => _generatePlan(),
+                  onGenerateAndSave: _generateAndSavePlan,
                 ),
                 _PreviewTab(
                   onOptimize: () =>
@@ -227,6 +241,7 @@ class _InputTab extends StatelessWidget {
     required this.onVoice,
     required this.onPaste,
     required this.onGenerate,
+    required this.onGenerateAndSave,
   });
 
   final TextEditingController controller;
@@ -236,11 +251,12 @@ class _InputTab extends StatelessWidget {
   final VoidCallback onVoice;
   final VoidCallback onPaste;
   final VoidCallback onGenerate;
+  final VoidCallback onGenerateAndSave;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: ContentInsets.scrollPadding(context),
       children: [
         Text(
           AppStrings.voiceToPlanDesc,
@@ -277,9 +293,18 @@ class _InputTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         AppButton(
-          label: AppStrings.generatePlan,
+          label: AppStrings.generateAndSavePlan,
+          icon: Icons.save_rounded,
+          isExpanded: true,
+          isLoading: generating,
+          onPressed: generating ? null : onGenerateAndSave,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: AppStrings.previewPlanOnly,
           icon: Icons.auto_awesome_rounded,
           isExpanded: true,
+          variant: AppButtonVariant.secondary,
           isLoading: generating,
           onPressed: generating ? null : onGenerate,
         ),
@@ -318,7 +343,7 @@ class _PreviewTab extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: ContentInsets.scrollPadding(context),
       children: [
         Text(
           AppDateFormat.formatDate(preview.planDate),
@@ -444,7 +469,7 @@ class _ScheduleTab extends ConsumerWidget {
                   plan.items.any((item) => item.isMissed && !item.isCompleted);
 
               return ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: ContentInsets.scrollPadding(context),
                 children: [
                   Text(
                     AppDateFormat.formatDate(plan.planDate),
@@ -531,7 +556,7 @@ class _ReviewsTab extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: ContentInsets.scrollPadding(context),
       children: [
         lifeScoreAsync.when(
           loading: () => const SizedBox.shrink(),

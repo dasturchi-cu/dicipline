@@ -68,6 +68,8 @@ class PlanEntity {
 
   List<PlanItemEmbedded> items = [];
 
+  List<String> lifeAreaIds = [];
+
   @Index()
   late DateTime createdAt;
 
@@ -79,6 +81,7 @@ class PlanEntity {
     required this.planDate,
     this.sourceText = '',
     List<PlanItemEmbedded>? items,
+    this.lifeAreaIds = const [],
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : items = items ?? [],
@@ -90,6 +93,7 @@ class PlanEntity {
         'planDate': planDate.toIso8601String(),
         'sourceText': sourceText,
         'items': items.map((item) => item.toJson()).toList(),
+        'lifeAreaIds': lifeAreaIds,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -102,6 +106,8 @@ class PlanEntity {
               ?.map((e) => PlanItemEmbedded.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      lifeAreaIds:
+          (json['lifeAreaIds'] as List<dynamic>?)?.cast<String>() ?? [],
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );

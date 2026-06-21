@@ -7,6 +7,7 @@ import '../../../../core/notifications/plan_notification_helper.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../ai_coach/presentation/providers/ai_coach_provider.dart';
+import '../../../gamification/presentation/providers/gamification_providers.dart';
 import '../../domain/ai_planning_service.dart';
 import '../../domain/auto_reschedule_service.dart';
 import '../../domain/daily_review_service.dart';
@@ -201,7 +202,9 @@ class AiPlanningNotifier extends Notifier<AsyncValue<void>> {
 
       final saved = await repo.upsertForDate(
         planDate: optimized.planDate,
-        sourceText: optimized.sourceText,
+        sourceText: optimized.sourceText.isNotEmpty
+            ? optimized.sourceText
+            : preview.sourceText,
         items: items,
       );
 

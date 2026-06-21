@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../notifications/notification_service.dart';
+import '../notifications/retention_notification_providers.dart';
+import '../../features/future_simulator/domain/future_letter_service.dart';
+import '../../features/gamification/presentation/providers/gamification_providers.dart';
+import '../../features/phase2/presentation/providers/phase2_providers.dart';
 import '../router/app_router.dart';
 import 'provider_sync.dart';
 
@@ -25,6 +29,11 @@ class _NotificationRouterBridgeState
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await refreshMissedPlanState(ref);
       await syncAllNotifications(ref);
+      await scheduleRetentionNotifications(ref);
+      await _processLetterDeliveries(ref);
+      await checkEmotionIntervention(ref);
+      await runDailyBootstrap(ref);
+      await runPhase2Bootstrap(ref);
     });
   }
 
@@ -39,7 +48,25 @@ class _NotificationRouterBridgeState
   void _handlePayload(String payload) {
     if (!mounted) return;
     final router = ref.read(appRouterProvider);
-    router.go(payload);
+    if (payload.contains('?')) {
+      final uri = Uri.parse(payload);
+      router.go(uri.path);
+    } else {
+      router.go(payload);
+    }
+  }
+
+  Future<void> _processLetterDeliveries(WidgetRef ref) async {
+    final delivered =
+        await ref.read(futureLetterServiceProvider).processDeliveries();
+    if (delivered.isEmpty) return;
+    final helper = ref.read(retentionNotificationHelperProvider);
+    for (final letter in delivered) {
+      await helper.notifyLetterUnlocked(
+        horizonLabel: FutureLetterService.horizonLabel(letter.deliveryHorizon),
+        letterId: letter.id,
+      );
+    }
   }
 
   @override

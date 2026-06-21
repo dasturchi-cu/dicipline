@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/constants/app_strings.dart';
@@ -7,6 +8,13 @@ import '../../core/theme/app_colors.dart';
 void hapticLight() => HapticFeedback.lightImpact();
 void hapticMedium() => HapticFeedback.mediumImpact();
 void hapticSuccess() => HapticFeedback.heavyImpact();
+
+/// Dialog yopilgach controllerlarni xavfsiz yo'q qiladi (animatsiya tugaguncha kutadi).
+void deferDispose(VoidCallback dispose) {
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    Future<void>.delayed(const Duration(milliseconds: 320), dispose);
+  });
+}
 
 void showSavedSnackBar(BuildContext context, {String? message}) {
   hapticLight();

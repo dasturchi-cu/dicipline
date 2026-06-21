@@ -1,8 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/ai_coach/presentation/providers/ai_coach_provider.dart';
+import 'package:rejabon_ai/features/ai_coach/presentation/providers/ai_coach_provider.dart';
+import 'package:rejabon_ai/core/intelligence/intelligence_providers.dart';
+import 'package:rejabon_ai/features/retention/presentation/providers/retention_providers.dart';
 import '../../features/ai_planning/presentation/providers/ai_planning_provider.dart';
+import '../../features/gamification/presentation/providers/gamification_providers.dart';
+import '../../features/capture/presentation/providers/capture_providers.dart';
+import '../../features/life_os/presentation/providers/life_os_providers.dart';
+import '../../features/phase2/presentation/providers/phase2_providers.dart';
+import '../../features/platform/presentation/providers/platform_providers.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
+import '../notifications/retention_notification_providers.dart';
 import '../notifications/calendar_notification_helper.dart';
 import '../notifications/plan_notification_helper.dart';
 import '../providers/core_providers.dart';
@@ -16,6 +24,27 @@ void invalidateDerivedProviders(WidgetRef ref) {
   ref.invalidate(weeklyReviewProvider);
   ref.invalidate(rescheduleSuggestionsProvider);
   ref.invalidate(achievementsProvider);
+  ref.invalidate(analyticsInsightsProvider);
+  ref.invalidate(lifeBalanceProvider);
+  ref.invalidate(lifeDirectionProvider);
+  ref.invalidate(ceoWeeklyReviewProvider);
+  ref.invalidate(inboxProvider);
+  ref.invalidate(timeLogsProvider);
+  ref.invalidate(timeAnalyticsProvider);
+  ref.invalidate(lifeTimelineProvider);
+  ref.invalidate(milestonesProvider);
+  ref.invalidate(playerProfileProvider);
+  ref.invalidate(dailyQuestsProvider);
+  ref.invalidate(xpEventsProvider);
+  ref.invalidate(moodTrendProvider);
+  ref.invalidate(coachContextProvider);
+  ref.invalidate(lifeBrainInsightsProvider);
+  ref.invalidate(lifeBrainTopInsightProvider);
+  ref.invalidate(dailyBriefingProvider);
+  ref.invalidate(lifeHeatmapProvider);
+  ref.invalidate(emotionProfileProvider);
+  ref.invalidate(memoryContextProvider);
+  invalidatePhase2Providers(ref);
 }
 
 /// Reja bilan bog'liq provayderlarni yangilaydi.
@@ -47,6 +76,10 @@ Future<void> syncAllNotifications(WidgetRef ref) async {
         leadMinutes: settings.notificationLeadMinutes,
         plans: plans,
       );
+  await ref.read(reEngagementNotificationServiceProvider).scheduleAll(
+        enabled: settings.notificationEnabled,
+      );
+  await scheduleRetentionNotifications(ref);
 }
 
 /// O'tkazib yuborilgan reja bandlarini belgilaydi.
@@ -79,5 +112,21 @@ void invalidateAllDataProviders(WidgetRef ref) {
   ref.invalidate(workoutStatisticsProvider);
   ref.invalidate(studyProgressProvider);
   ref.invalidate(financeCategoryStatisticsProvider);
+  ref.invalidate(monthlyFocusProvider);
+  ref.invalidate(aiMemoriesProvider);
+  ref.invalidate(activeChallengesProvider);
+  ref.invalidate(analyticsInsightsProvider);
+  ref.invalidate(aiMemoryInsightsProvider);
+  ref.invalidate(yesterdayReviewProvider);
+  ref.invalidate(lifeBalanceProvider);
+  ref.invalidate(lifeDirectionProvider);
+  ref.invalidate(ceoWeeklyReviewProvider);
+  ref.invalidate(inboxProvider);
+  ref.invalidate(timeLogsProvider);
+  ref.invalidate(timeAnalyticsProvider);
+  ref.invalidate(lifeTimelineProvider);
+  ref.invalidate(milestonesProvider);
+  ref.invalidate(playerProfileProvider);
+  ref.invalidate(dailyQuestsProvider);
   invalidateDerivedProviders(ref);
 }

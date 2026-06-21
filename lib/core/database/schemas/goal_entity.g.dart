@@ -32,24 +32,39 @@ const GoalEntitySchema = CollectionSchema(
       name: r'emoji',
       type: IsarType.string,
     ),
-    r'milestones': PropertySchema(
+    r'horizon': PropertySchema(
       id: 3,
+      name: r'horizon',
+      type: IsarType.string,
+    ),
+    r'lifeAreaIds': PropertySchema(
+      id: 4,
+      name: r'lifeAreaIds',
+      type: IsarType.stringList,
+    ),
+    r'milestones': PropertySchema(
+      id: 5,
       name: r'milestones',
       type: IsarType.objectList,
       target: r'MilestoneEmbedded',
     ),
+    r'parentGoalId': PropertySchema(
+      id: 6,
+      name: r'parentGoalId',
+      type: IsarType.long,
+    ),
     r'progress': PropertySchema(
-      id: 4,
+      id: 7,
       name: r'progress',
       type: IsarType.double,
     ),
     r'targetDate': PropertySchema(
-      id: 5,
+      id: 8,
       name: r'targetDate',
       type: IsarType.dateTime,
     ),
     r'title': PropertySchema(
-      id: 6,
+      id: 9,
       name: r'title',
       type: IsarType.string,
     )
@@ -121,6 +136,19 @@ int _goalEntityEstimateSize(
     }
   }
   bytesCount += 3 + object.emoji.length * 3;
+  {
+    final value = object.horizon;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.lifeAreaIds.length * 3;
+  {
+    for (var i = 0; i < object.lifeAreaIds.length; i++) {
+      final value = object.lifeAreaIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.milestones.length * 3;
   {
     final offsets = allOffsets[MilestoneEmbedded]!;
@@ -143,15 +171,18 @@ void _goalEntitySerialize(
   writer.writeDateTime(offsets[0], object.createdAt);
   writer.writeString(offsets[1], object.description);
   writer.writeString(offsets[2], object.emoji);
+  writer.writeString(offsets[3], object.horizon);
+  writer.writeStringList(offsets[4], object.lifeAreaIds);
   writer.writeObjectList<MilestoneEmbedded>(
-    offsets[3],
+    offsets[5],
     allOffsets,
     MilestoneEmbeddedSchema.serialize,
     object.milestones,
   );
-  writer.writeDouble(offsets[4], object.progress);
-  writer.writeDateTime(offsets[5], object.targetDate);
-  writer.writeString(offsets[6], object.title);
+  writer.writeLong(offsets[6], object.parentGoalId);
+  writer.writeDouble(offsets[7], object.progress);
+  writer.writeDateTime(offsets[8], object.targetDate);
+  writer.writeString(offsets[9], object.title);
 }
 
 GoalEntity _goalEntityDeserialize(
@@ -164,17 +195,20 @@ GoalEntity _goalEntityDeserialize(
   object.createdAt = reader.readDateTime(offsets[0]);
   object.description = reader.readStringOrNull(offsets[1]);
   object.emoji = reader.readString(offsets[2]);
+  object.horizon = reader.readStringOrNull(offsets[3]);
   object.id = id;
+  object.lifeAreaIds = reader.readStringList(offsets[4]) ?? [];
   object.milestones = reader.readObjectList<MilestoneEmbedded>(
-        offsets[3],
+        offsets[5],
         MilestoneEmbeddedSchema.deserialize,
         allOffsets,
         MilestoneEmbedded(),
       ) ??
       [];
-  object.progress = reader.readDouble(offsets[4]);
-  object.targetDate = reader.readDateTimeOrNull(offsets[5]);
-  object.title = reader.readString(offsets[6]);
+  object.parentGoalId = reader.readLongOrNull(offsets[6]);
+  object.progress = reader.readDouble(offsets[7]);
+  object.targetDate = reader.readDateTimeOrNull(offsets[8]);
+  object.title = reader.readString(offsets[9]);
   return object;
 }
 
@@ -192,6 +226,10 @@ P _goalEntityDeserializeProp<P>(
     case 2:
       return (reader.readString(offset)) as P;
     case 3:
+      return (reader.readStringOrNull(offset)) as P;
+    case 4:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 5:
       return (reader.readObjectList<MilestoneEmbedded>(
             offset,
             MilestoneEmbeddedSchema.deserialize,
@@ -199,11 +237,13 @@ P _goalEntityDeserializeProp<P>(
             MilestoneEmbedded(),
           ) ??
           []) as P;
-    case 4:
-      return (reader.readDouble(offset)) as P;
-    case 5:
-      return (reader.readDateTimeOrNull(offset)) as P;
     case 6:
+      return (reader.readLongOrNull(offset)) as P;
+    case 7:
+      return (reader.readDouble(offset)) as P;
+    case 8:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 9:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -902,6 +942,155 @@ extension GoalEntityQueryFilter
     });
   }
 
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'horizon',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      horizonIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'horizon',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      horizonGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'horizon',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'horizon',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'horizon',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> horizonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'horizon',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      horizonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'horizon',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -952,6 +1141,231 @@ extension GoalEntityQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lifeAreaIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'lifeAreaIds',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -1041,6 +1455,80 @@ extension GoalEntityQueryFilter
         upper,
         includeUpper,
       );
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'parentGoalId',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'parentGoalId',
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'parentGoalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'parentGoalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'parentGoalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterFilterCondition>
+      parentGoalIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'parentGoalId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
@@ -1363,6 +1851,30 @@ extension GoalEntityQuerySortBy
     });
   }
 
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> sortByHorizon() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'horizon', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> sortByHorizonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'horizon', Sort.desc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> sortByParentGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'parentGoalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> sortByParentGoalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'parentGoalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> sortByProgress() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'progress', Sort.asc);
@@ -1438,6 +1950,18 @@ extension GoalEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenByHorizon() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'horizon', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenByHorizonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'horizon', Sort.desc);
+    });
+  }
+
   QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1447,6 +1971,18 @@ extension GoalEntityQuerySortThenBy
   QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenByParentGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'parentGoalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QAfterSortBy> thenByParentGoalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'parentGoalId', Sort.desc);
     });
   }
 
@@ -1509,6 +2045,25 @@ extension GoalEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<GoalEntity, GoalEntity, QDistinct> distinctByHorizon(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'horizon', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QDistinct> distinctByLifeAreaIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lifeAreaIds');
+    });
+  }
+
+  QueryBuilder<GoalEntity, GoalEntity, QDistinct> distinctByParentGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'parentGoalId');
+    });
+  }
+
   QueryBuilder<GoalEntity, GoalEntity, QDistinct> distinctByProgress() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'progress');
@@ -1555,10 +2110,29 @@ extension GoalEntityQueryProperty
     });
   }
 
+  QueryBuilder<GoalEntity, String?, QQueryOperations> horizonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'horizon');
+    });
+  }
+
+  QueryBuilder<GoalEntity, List<String>, QQueryOperations>
+      lifeAreaIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lifeAreaIds');
+    });
+  }
+
   QueryBuilder<GoalEntity, List<MilestoneEmbedded>, QQueryOperations>
       milestonesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'milestones');
+    });
+  }
+
+  QueryBuilder<GoalEntity, int?, QQueryOperations> parentGoalIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'parentGoalId');
     });
   }
 

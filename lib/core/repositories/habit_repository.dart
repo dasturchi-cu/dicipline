@@ -141,11 +141,13 @@ class HabitRepository {
 
   Future<HabitEntity> create({
     required String name,
+    String emoji = '',
     String icon = 'check_circle',
     int color = 0xFF6366F1,
   }) async {
     final habit = HabitEntity.create(
       name: name,
+      emoji: emoji,
       icon: icon,
       color: color,
     );

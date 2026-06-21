@@ -108,10 +108,10 @@ class AppTypography {
 
   static TextStyle sectionLabel(Brightness brightness) {
     return GoogleFonts.inter(
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: FontWeight.w600,
       color: AppColors.textSecondary(brightness),
-      letterSpacing: 0.8,
+      letterSpacing: 0,
     );
   }
 }

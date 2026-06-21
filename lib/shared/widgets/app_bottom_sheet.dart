@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../core/theme/app_colors.dart';
-
-/// Dispose controllers after the sheet route fully closes.
-void deferDispose(VoidCallback dispose) {
-  SchedulerBinding.instance.addPostFrameCallback((_) => dispose());
-}
 
 Future<T?> showAppBottomSheet<T>(
   BuildContext context, {

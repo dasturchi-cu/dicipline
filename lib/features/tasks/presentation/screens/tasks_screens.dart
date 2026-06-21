@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rejabon_ai/core/constants/app_strings.dart';
+import 'package:rejabon_ai/core/integration/action_reward_bridge.dart';
 import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/features/ai_planning/presentation/providers/ai_planning_provider.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
+import 'package:rejabon_ai/core/utils/content_insets.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
 import 'package:rejabon_ai/core/database/schemas/task_entity.dart';
@@ -18,10 +20,12 @@ import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_feedback.dart';
 import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
 import 'package:rejabon_ai/shared/widgets/emoji_picker_field.dart';
+import 'package:rejabon_ai/shared/widgets/calm_ui.dart';
 import 'package:rejabon_ai/shared/widgets/animated_check_button.dart';
 import 'package:rejabon_ai/shared/widgets/fade_in.dart';
 import 'package:rejabon_ai/shared/widgets/filter_pills.dart';
 import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
+import 'package:rejabon_ai/shared/widgets/life_area_picker.dart';
 import 'package:rejabon_ai/shared/widgets/module_screen.dart';
 
 enum TaskFilter { all, active, completed }
@@ -41,6 +45,7 @@ class TasksListScreen extends ConsumerWidget {
     return ModuleScreen(
       title: AppStrings.tasks,
       showDivider: false,
+      inShell: true,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/vazifalar/yangi'),
         icon: const Icon(Icons.add_rounded),
@@ -49,77 +54,28 @@ class TasksListScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: AppSpacing.sm),
           tasksAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
             data: (tasks) {
               final active = tasks.where((t) => !t.isCompleted).length;
               final done = tasks.where((t) => t.isCompleted).length;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: FadeIn(
-                  child: AppCard(
-                    variant: AppCardVariant.filled,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$active',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
-                              Text(
-                                AppStrings.taskActive,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 40,
-                          color: AppColors.border(
-                            Theme.of(context).brightness,
-                            subtle: true,
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                '$done',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      color: AppColors.success,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
-                              Text(
-                                AppStrings.taskCompleted,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+              return CalmInlineStats(
+                items: [
+                  (
+                    value: '$active',
+                    label: AppStrings.taskActive.toLowerCase(),
+                    color: AppColors.primary,
                   ),
-                ),
+                  (
+                    value: '$done',
+                    label: AppStrings.taskCompleted.toLowerCase(),
+                    color: AppColors.success,
+                  ),
+                ],
               );
             },
           ),
-          const SizedBox(height: AppSpacing.sm),
           FilterPills<TaskFilter>(
             options: TaskFilter.values,
             selected: filter,
@@ -158,7 +114,7 @@ class TasksListScreen extends ConsumerWidget {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: ContentInsets.scrollPadding(context, inShell: true),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final task = filtered[index];
@@ -220,6 +176,9 @@ class _TaskListTile extends ConsumerWidget {
                   if (updated != null) {
                     await syncTaskWithPlan(ref, updated);
                     invalidateDerivedProviders(ref);
+                    if (!wasCompleted && updated.isCompleted) {
+                      await rewardTaskComplete(ref, context, taskId: updated.id);
+                    }
                   }
                   if (context.mounted && !wasCompleted) {
                     showCompletedSnackBar(context);
@@ -340,7 +299,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
   int _priority = 1;
   String _category = _taskCategories.first;
   String _emoji = '';
+  List<String> _lifeAreas = [];
   DateTime? _dueDate;
+  String _recurrenceType = 'none';
   bool _loading = true;
 
   @override
@@ -362,7 +323,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
               ? task.category
               : _taskCategories.first;
           _emoji = task.emoji;
+          _lifeAreas = List.of(task.lifeAreaIds);
           _dueDate = task.dueDate;
+          _recurrenceType = task.recurrenceType;
         }
       }
     }
@@ -404,7 +367,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
             : _descCtrl.text.trim()
         ..priority = _priority
         ..category = _category
-        ..dueDate = _dueDate;
+        ..lifeAreaIds = _lifeAreas
+        ..dueDate = _dueDate
+        ..recurrenceType = _recurrenceType;
     } else {
       task = TaskEntity.create(
         title: _titleCtrl.text.trim(),
@@ -413,7 +378,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
             _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         priority: _priority,
         category: _category,
+        lifeAreaIds: _lifeAreas,
         dueDate: _dueDate,
+        recurrenceType: _recurrenceType,
       );
     }
 
@@ -482,6 +449,15 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
               onChanged: (v) => setState(() => _category = v!),
             ),
             const SizedBox(height: AppSpacing.md),
+            Text(AppStrings.lifeAreas,
+                style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: AppSpacing.sm),
+            LifeAreaPicker(
+              selected: _lifeAreas,
+              onChanged: (v) => setState(() => _lifeAreas = v),
+              compact: true,
+            ),
+            const SizedBox(height: AppSpacing.md),
             AppTextField(
               readOnly: true,
               label: AppStrings.taskDueDate,
@@ -496,6 +472,18 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                 onPressed: _pickDueDate,
               ),
               onTap: _pickDueDate,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<String>(
+              initialValue: _recurrenceType,
+              decoration: const InputDecoration(labelText: AppStrings.taskRecurrence),
+              items: const [
+                DropdownMenuItem(value: 'none', child: Text(AppStrings.recurrenceNone)),
+                DropdownMenuItem(value: 'daily', child: Text(AppStrings.recurrenceDaily)),
+                DropdownMenuItem(value: 'weekly', child: Text(AppStrings.recurrenceWeekly)),
+                DropdownMenuItem(value: 'monthly', child: Text(AppStrings.recurrenceMonthly)),
+              ],
+              onChanged: (v) => setState(() => _recurrenceType = v ?? 'none'),
             ),
             const SizedBox(height: AppSpacing.xl),
             AppButton(

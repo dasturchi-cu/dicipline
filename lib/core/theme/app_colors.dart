@@ -17,8 +17,8 @@ class AppColors {
   static const warning = Color(0xFFF59E0B);
   static const error = Color(0xFFEF4444);
 
-  // Light surfaces
-  static const lightBackground = Color(0xFFF5F6FA);
+  // Light surfaces — calm, Headspace-adjacent warmth
+  static const lightBackground = Color(0xFFFAFAFC);
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightSurfaceElevated = Color(0xFFFAFBFE);
   static const lightTextPrimary = Color(0xFF0F0F1A);
@@ -59,6 +59,19 @@ class AppColors {
     Color(0xFF00D4AA),
     Color(0xFF06B6D4),
   ];
+
+  // Premium accents
+  static const premiumGlow = Color(0xFF8B7FFF);
+  static const surfaceTint = Color(0xFFF8F7FF);
+  static const darkSurfaceTint = Color(0xFF1A1830);
+
+  // Module colors
+  static const moduleTask = Color(0xFF5B4DFF);
+  static const moduleHabit = Color(0xFFFF6B2C);
+  static const moduleGoal = Color(0xFF00D4AA);
+  static const moduleNote = Color(0xFF06B6D4);
+  static const moduleAnalytics = Color(0xFF8B5CF6);
+  static const moduleChallenge = Color(0xFFFFB800);
 
   // Priority
   static const priorityLow = Color(0xFF10B981);

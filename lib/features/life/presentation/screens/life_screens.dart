@@ -8,12 +8,17 @@ import 'package:rejabon_ai/core/database/schemas/journal_entry_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/study_session_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/study_subject_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/workout_entity.dart';
+import 'package:rejabon_ai/core/intelligence/intelligence_providers.dart';
+import 'package:rejabon_ai/features/journal/presentation/widgets/mood_trend_chart.dart';
+import 'package:rejabon_ai/core/integration/action_reward_bridge.dart';
 import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
+import 'package:rejabon_ai/core/utils/content_insets.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
 import 'package:rejabon_ai/shared/widgets/achievement_celebration.dart';
+import 'package:rejabon_ai/features/phase2/presentation/providers/phase2_providers.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
 import 'package:rejabon_ai/shared/widgets/app_bottom_sheet.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
@@ -36,7 +41,6 @@ class HabitsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final habitsAsync = ref.watch(habitsProvider);
-    final statsAsync = ref.watch(habitStatisticsProvider);
     final repo = ref.read(habitRepositoryProvider);
 
     return ModuleScreen(
@@ -61,123 +65,82 @@ class HabitsScreen extends ConsumerWidget {
               onAction: () => _showHabitDialog(context, ref),
             );
           }
-          final stats = statsAsync.valueOrNull;
           return ListView.builder(
             padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: habits.length + (stats != null ? 1 : 0),
+            itemCount: habits.length,
             itemBuilder: (context, index) {
-              if (stats != null && index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: AppCard(
-                    variant: stats.longestStreak >= 7
-                        ? AppCardVariant.gradient
-                        : AppCardVariant.filled,
-                    gradientColors: AppColors.streakGradient,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppStrings.statistics,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _MiniStat(
-                                label: AppStrings.weeklyStats,
-                                value:
-                                    '${stats.weeklyCompletionRate.round()}%',
-                              ),
-                            ),
-                            Expanded(
-                              child: _MiniStat(
-                                label: AppStrings.monthlyStats,
-                                value:
-                                    '${stats.monthlyCompletionRate.round()}%',
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _MiniStat(
-                          label: AppStrings.longestStreak,
-                          value: '${stats.longestStreak} ${AppStrings.days}',
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              final habitIndex = stats != null ? index - 1 : index;
-              final habit = habits[habitIndex];
+              final habit = habits[index];
               final done = repo.isCompletedToday(habit);
               final streak = habitStreak(habit);
               return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AppCard(
-                  child: Row(
-                    children: [
-                      AnimatedCheckButton(
-                        checked: done,
-                        activeColor: AppColors.fire,
-                        celebrateOnCheck: true,
-                        onChanged: (_) async {
-                          await repo.toggleToday(habit);
-                          invalidateDerivedProviders(ref);
-                          if (context.mounted && !done) {
-                            showCompletedSnackBar(context);
-                            await celebrateNewAchievements(ref, context);
-                          }
-                        },
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: Material(
+                  color: AppColors.surface(Theme.of(context).brightness),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    onTap: () async {
+                      await repo.toggleToday(habit);
+                      invalidateDerivedProviders(ref);
+                      if (context.mounted && !done) {
+                        await rewardHabitComplete(ref, context, habitId: habit.id);
+                        showCompletedSnackBar(context);
+                        await celebrateNewAchievements(ref, context);
+                      }
+                    },
+                    onLongPress: () => _showHabitActions(context, ref, habit),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.md,
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayWithEmoji(
-                                title: habit.name,
-                                emoji: habit.emoji,
-                              ),
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Row(
+                      child: Row(
+                        children: [
+                          AnimatedCheckButton(
+                            checked: done,
+                            activeColor: AppColors.primary,
+                            celebrateOnCheck: true,
+                            onChanged: (_) async {
+                              await repo.toggleToday(habit);
+                              invalidateDerivedProviders(ref);
+                              if (context.mounted && !done) {
+                                await rewardHabitComplete(
+                                  ref,
+                                  context,
+                                  habitId: habit.id,
+                                );
+                                showCompletedSnackBar(context);
+                                await celebrateNewAchievements(ref, context);
+                              }
+                            },
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.local_fire_department_rounded,
-                                  size: 16,
-                                  color: AppColors.warning,
-                                ),
-                                const SizedBox(width: 4),
                                 Text(
-                                  '$streak ${AppStrings.days}',
+                                  displayWithEmoji(
+                                    title: habit.name,
+                                    emoji: habit.emoji,
+                                  ),
                                   style:
-                                      Theme.of(context).textTheme.bodySmall,
+                                      Theme.of(context).textTheme.titleMedium,
                                 ),
+                                if (streak > 0) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$streak ${AppStrings.days}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () =>
-                            _showHabitDialog(context, ref, habit: habit),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          if (!await confirmDelete(context)) return;
-                          await repo.delete(habit.id);
-                          if (context.mounted) showDeletedSnackBar(context);
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -186,6 +149,41 @@ class HabitsScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _showHabitActions(
+    BuildContext context,
+    WidgetRef ref,
+    HabitEntity habit,
+  ) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(AppStrings.edit),
+              onTap: () => Navigator.pop(ctx, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: Text(AppStrings.delete),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+    if (action == 'edit') {
+      await _showHabitDialog(context, ref, habit: habit);
+    } else if (action == 'delete') {
+      if (!await confirmDelete(context)) return;
+      await ref.read(habitRepositoryProvider).delete(habit.id);
+      if (context.mounted) showDeletedSnackBar(context);
+    }
   }
 
   Future<void> _showHabitDialog(
@@ -320,7 +318,7 @@ class GoalsScreen extends ConsumerWidget {
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: ContentInsets.scrollPadding(context),
             itemCount: goals.length,
             itemBuilder: (context, index) => _GoalCard(
               goal: goals[index],
@@ -348,6 +346,7 @@ class GoalsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: ContentInsets.dialogInsets(ctx),
           title: Text(goal == null ? AppStrings.newGoal : AppStrings.editGoal),
           content: SingleChildScrollView(
             child: Form(
@@ -449,8 +448,10 @@ class GoalsScreen extends ConsumerWidget {
         ),
       ),
     );
-    titleCtrl.dispose();
-    descCtrl.dispose();
+    deferDispose(() {
+      titleCtrl.dispose();
+      descCtrl.dispose();
+    });
   }
 }
 
@@ -468,7 +469,7 @@ class _GoalCard extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
-        variant: AppCardVariant.elevated,
+        variant: AppCardVariant.outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -477,8 +478,8 @@ class _GoalCard extends ConsumerWidget {
               children: [
                 ProgressRing(
                   progress: goal.progress / 100,
-                  size: 56,
-                  strokeWidth: 5,
+                  size: 52,
+                  strokeWidth: 4,
                   color: AppColors.primary,
                   child: Text(
                     '${goal.progress.round()}%',
@@ -501,22 +502,37 @@ class _GoalCard extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           goal.description!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    if (!await confirmDelete(context)) return;
-                    await ref.read(goalRepositoryProvider).delete(goal.id);
-                    if (context.mounted) showDeletedSnackBar(context);
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    color: AppColors.textSecondary(Theme.of(context).brightness),
+                  ),
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(AppStrings.edit),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(AppStrings.delete),
+                    ),
+                  ],
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      onEdit();
+                    } else if (value == 'delete') {
+                      if (!await confirmDelete(context)) return;
+                      await ref.read(goalRepositoryProvider).delete(goal.id);
+                      if (context.mounted) showDeletedSnackBar(context);
+                    }
                   },
                 ),
               ],
@@ -529,7 +545,12 @@ class _GoalCard extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.md),
-            SectionHeader(label: AppStrings.milestones),
+            Text(
+              AppStrings.milestones,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
             ...goal.milestones.map(
               (m) => CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -557,10 +578,35 @@ class _GoalCard extends ConsumerWidget {
               icon: const Icon(Icons.add_rounded),
               label: const Text(AppStrings.addMilestone),
             ),
+            if (goal.milestones.isEmpty || goal.progress < 30) ...[
+              const SizedBox(height: AppSpacing.xs),
+              AppButton(
+                label: AppStrings.executeGoal,
+                icon: Icons.auto_fix_high_rounded,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => _executeGoal(context, ref),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _executeGoal(BuildContext context, WidgetRef ref) async {
+    final analysis = await ref.read(lifeTwinAnalysisProvider.future);
+    final plan = await ref.read(goalExecutionServiceProvider).executeGoal(
+          goal: goal,
+          twinAnalysis: analysis,
+        );
+    ref.invalidate(tasksProvider);
+    ref.invalidate(goalsProvider);
+    ref.invalidate(plansProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(plan.summary)),
+      );
+    }
   }
 
   Future<void> _addMilestone(BuildContext context, WidgetRef ref) async {
@@ -582,7 +628,7 @@ class _GoalCard extends ConsumerWidget {
         ],
       ),
     );
-    ctrl.dispose();
+    deferDispose(ctrl.dispose);
     if (result != null && result.isNotEmpty) {
       goal.milestones.add(MilestoneEmbedded.create(title: result));
       await ref.read(goalRepositoryProvider).save(goal);
@@ -651,7 +697,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     }
     await ref.read(journalRepositoryProvider).save(entry);
     _entry = entry;
-    if (mounted) showSavedSnackBar(context);
+    invalidateDerivedProviders(ref);
+    if (mounted && AppDateFormat.isSameDay(_selectedDate, DateTime.now())) {
+      await rewardJournal(ref, context);
+    } else if (mounted) {
+      showSavedSnackBar(context);
+    }
   }
 
   @override
@@ -756,6 +807,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     );
                   }),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                MoodTrendChart(report: ref.watch(moodTrendProvider)),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   controller: _contentCtrl,
@@ -952,8 +1005,9 @@ class WorkoutScreen extends ConsumerWidget {
                           int.tryParse(caloriesCtrl.text) ?? 0,
                     ),
                   );
+              invalidateDerivedProviders(ref);
               if (context.mounted) {
-                showSavedSnackBar(context);
+                await rewardWorkout(ref, context);
                 Navigator.pop(ctx);
               }
             },
@@ -962,9 +1016,11 @@ class WorkoutScreen extends ConsumerWidget {
         ],
       ),
     );
-    nameCtrl.dispose();
-    durationCtrl.dispose();
-    caloriesCtrl.dispose();
+    deferDispose(() {
+      nameCtrl.dispose();
+      durationCtrl.dispose();
+      caloriesCtrl.dispose();
+    });
   }
 }
 
@@ -1189,8 +1245,10 @@ class StudyScreen extends ConsumerWidget {
         ],
       ),
     );
-    nameCtrl.dispose();
-    targetCtrl.dispose();
+    deferDispose(() {
+      nameCtrl.dispose();
+      targetCtrl.dispose();
+    });
   }
 
   Future<void> _showSessionDialog(
@@ -1239,6 +1297,6 @@ class StudyScreen extends ConsumerWidget {
         ],
       ),
     );
-    durationCtrl.dispose();
+    deferDispose(durationCtrl.dispose);
   }
 }

@@ -7,6 +7,7 @@ const _onboardingCompletedKey = 'onboarding_completed';
 const _userNameKey = 'user_name';
 const _notificationEnabledKey = 'notification_enabled';
 const _notificationLeadMinutesKey = 'notification_lead_minutes';
+const _onboardingPersonaKey = 'onboarding_persona';
 
 // Legacy SettingsService keys (migrated on load)
 const _legacyThemeModeKey = 'themeMode';
@@ -21,6 +22,7 @@ class AppSettings {
     required this.userName,
     required this.notificationEnabled,
     this.notificationLeadMinutes = 5,
+    this.onboardingPersona = '',
   });
 
   final ThemeMode themeMode;
@@ -28,6 +30,7 @@ class AppSettings {
   final String userName;
   final bool notificationEnabled;
   final int notificationLeadMinutes;
+  final String onboardingPersona;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -35,6 +38,7 @@ class AppSettings {
     String? userName,
     bool? notificationEnabled,
     int? notificationLeadMinutes,
+    String? onboardingPersona,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -43,6 +47,7 @@ class AppSettings {
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
       notificationLeadMinutes:
           notificationLeadMinutes ?? this.notificationLeadMinutes,
+      onboardingPersona: onboardingPersona ?? this.onboardingPersona,
     );
   }
 }
@@ -58,6 +63,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
       userName: '',
       notificationEnabled: true,
       notificationLeadMinutes: 5,
+      onboardingPersona: '',
     );
   }
 
@@ -69,6 +75,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
     final userName = _loadUserName(_prefs!);
     final notificationEnabled = _loadNotificationEnabled(_prefs!);
     final notificationLeadMinutes = _loadNotificationLeadMinutes(_prefs!);
+    final onboardingPersona = _prefs!.getString(_onboardingPersonaKey) ?? '';
 
     state = AppSettings(
       themeMode: themeMode,
@@ -76,6 +83,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
       userName: userName,
       notificationEnabled: notificationEnabled,
       notificationLeadMinutes: notificationLeadMinutes,
+      onboardingPersona: onboardingPersona,
     );
   }
 
@@ -145,6 +153,30 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setString(_userNameKey, name);
     state = state.copyWith(userName: name);
+  }
+
+  Future<void> setOnboardingPersona(String persona) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(_onboardingPersonaKey, persona);
+    state = state.copyWith(onboardingPersona: persona);
+  }
+
+  Future<void> completeOnboardingWith({
+    required String userName,
+    required String persona,
+    bool notificationsEnabled = true,
+  }) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(_userNameKey, userName);
+    await _prefs!.setString(_onboardingPersonaKey, persona);
+    await _prefs!.setBool(_onboardingCompletedKey, true);
+    await _prefs!.setBool(_notificationEnabledKey, notificationsEnabled);
+    state = state.copyWith(
+      userName: userName,
+      onboardingPersona: persona,
+      onboardingCompleted: true,
+      notificationEnabled: notificationsEnabled,
+    );
   }
 
   Future<bool> setNotificationEnabled(bool enabled) async {

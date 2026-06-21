@@ -62,11 +62,17 @@ class NoteRepository {
     required String title,
     required String content,
     List<String>? tags,
+    String itemType = 'note',
+    String? sourceUrl,
+    String category = 'umumiy',
   }) async {
     final note = NoteEntity.create(
       title: title,
       content: content,
       tags: tags,
+      itemType: itemType,
+      sourceUrl: sourceUrl,
+      category: category,
     );
     await _isar.writeTxn(() async {
       await _isar.noteEntitys.put(note);

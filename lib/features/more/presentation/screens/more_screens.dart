@@ -18,6 +18,7 @@ import 'package:rejabon_ai/core/theme/app_colors.dart';
 import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/notifications/calendar_notification_helper.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
+import 'package:rejabon_ai/core/utils/content_insets.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
 import 'package:rejabon_ai/features/ai_coach/presentation/providers/ai_coach_provider.dart';
 import 'package:rejabon_ai/features/settings/presentation/providers/ai_status_provider.dart';
@@ -25,6 +26,7 @@ import 'package:rejabon_ai/features/settings/presentation/providers/settings_pro
 import 'package:rejabon_ai/features/settings/presentation/widgets/ai_status_card.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
 import 'package:rejabon_ai/shared/widgets/achievement_celebration.dart';
+import 'package:rejabon_ai/shared/widgets/calm_ui.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
 import 'package:rejabon_ai/shared/widgets/calendar_month_view.dart';
 import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
@@ -178,7 +180,8 @@ class NotesScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-        title: Text(note == null ? AppStrings.newNote : AppStrings.editNote),
+          insetPadding: ContentInsets.dialogInsets(ctx),
+          title: Text(note == null ? AppStrings.newNote : AppStrings.editNote),
         content: SingleChildScrollView(
           child: Form(
             key: formKey,
@@ -254,9 +257,11 @@ class NotesScreen extends ConsumerWidget {
         ),
       ),
     );
-    titleCtrl.dispose();
-    contentCtrl.dispose();
-    tagsCtrl.dispose();
+    deferDispose(() {
+      titleCtrl.dispose();
+      contentCtrl.dispose();
+      tagsCtrl.dispose();
+    });
   }
 }
 
@@ -306,7 +311,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ..sort((a, b) => a.startTime.compareTo(b.startTime)));
 
           return ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: ContentInsets.scrollPadding(context),
             children: [
               CalendarMonthView(
                 events: events,
@@ -478,6 +483,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: ContentInsets.dialogInsets(ctx),
           title: Text(
             event == null ? AppStrings.newEvent : AppStrings.editEvent,
           ),
@@ -637,8 +643,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ),
       ),
     );
-    titleCtrl.dispose();
-    descCtrl.dispose();
+    deferDispose(() {
+      titleCtrl.dispose();
+      descCtrl.dispose();
+    });
   }
 }
 
@@ -779,37 +787,41 @@ class DocumentsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: ContentInsets.dialogInsets(ctx),
           title: Text(
             doc == null ? AppStrings.newDocument : AppStrings.edit,
           ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppTextField(
-                  controller: titleCtrl,
-                  label: AppStrings.documentTitle,
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Nom kerak' : null,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration:
-                      const InputDecoration(labelText: AppStrings.documentType),
-                  items: _documentTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => type = v!),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppTextField(
-                  controller: descCtrl,
-                  label: AppStrings.description,
-                  maxLines: 2,
-                ),
-              ],
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    controller: titleCtrl,
+                    label: AppStrings.documentTitle,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  DropdownButtonFormField<String>(
+                    initialValue: type,
+                    decoration: const InputDecoration(
+                      labelText: AppStrings.documentType,
+                    ),
+                    items: _documentTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => type = v!),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppTextField(
+                    controller: descCtrl,
+                    label: AppStrings.description,
+                    maxLines: 2,
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -851,8 +863,10 @@ class DocumentsScreen extends ConsumerWidget {
         ),
       ),
     );
-    titleCtrl.dispose();
-    descCtrl.dispose();
+    deferDispose(() {
+      titleCtrl.dispose();
+      descCtrl.dispose();
+    });
   }
 }
 
@@ -890,113 +904,53 @@ class AiCoachScreen extends ConsumerWidget {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: ContentInsets.scrollPadding(context),
             children: [
-              FadeIn(
-                child: AppCard(
-                  variant: AppCardVariant.gradient,
-                  gradientColors: AppColors.heroGradientLight,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: const Icon(
-                          Icons.psychology_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+              Text(
+                '${tips.length} ${AppStrings.dailyRecommendations.toLowerCase()}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary(
+                        Theme.of(context).brightness,
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.aiCoach,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(color: Colors.white),
-                            ),
-                            Text(
-                              '${tips.length} ${AppStrings.dailyRecommendations.toLowerCase()}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              _AiCoachStatusBanner(status: ref.watch(aiStatusProvider)),
               const SizedBox(height: AppSpacing.lg),
-              SectionHeader(label: AppStrings.dailyRecommendations),
-              const SizedBox(height: AppSpacing.sm),
               ...tips.asMap().entries.map(
                 (entry) => FadeIn(
                   index: entry.key,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: GlassPanel(
+                    child: AppCard(
+                      variant: AppCardVariant.outlined,
                       onTap: entry.value.actionRoute != null
                           ? () => context.push(entry.value.actionRoute!)
                           : null,
-                      opacity: 0.88,
-                      child: Row(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: const Icon(
-                              Icons.lightbulb_rounded,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
+                          Text(
+                            entry.value.title,
+                            style: Theme.of(context).textTheme.titleSmall,
                           ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  entry.value.title,
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(entry.value.description),
-                                if (entry.value.actionRoute != null) ...[
-                                  const SizedBox(height: AppSpacing.sm),
-                                  Text(
-                                    AppStrings.goToAction,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            entry.value.description,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (entry.value.actionRoute != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              AppStrings.goToAction,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                ],
-                              ],
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -1168,7 +1122,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: AppStrings.settings,
       showBackButton: true,
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: ContentInsets.scrollPadding(context),
         children: [
           Text(
             AppStrings.preferences,
@@ -1208,21 +1162,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 SegmentedButton<ThemeMode>(
+                  showSelectedIcon: false,
                   segments: const [
                     ButtonSegment(
                       value: ThemeMode.light,
                       label: Text(AppStrings.themeLight),
-                      icon: Icon(Icons.light_mode_outlined),
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
                       label: Text(AppStrings.themeDark),
-                      icon: Icon(Icons.dark_mode_outlined),
                     ),
                     ButtonSegment(
                       value: ThemeMode.system,
                       label: Text(AppStrings.themeSystem),
-                      icon: Icon(Icons.settings_suggest_outlined),
                     ),
                   ],
                   selected: {appSettings.themeMode},
@@ -1316,12 +1268,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
-          Text(
-            AppStrings.aiStatus,
-            style: Theme.of(context).textTheme.titleMedium,
+          CalmExpandableSection(
+            title: AppStrings.aiAdvanced,
+            children: const [
+              SizedBox(height: AppSpacing.sm),
+              AiStatusCard(),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const AiStatusCard(),
           const SizedBox(height: AppSpacing.lg),
           Text(
             AppStrings.backup,

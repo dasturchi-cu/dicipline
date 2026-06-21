@@ -18,6 +18,17 @@ class HabitEntity {
 
   List<DateTime> completedDates = [];
 
+  List<String> lifeAreaIds = [];
+
+  /// daily | weekdays | weekly | custom
+  String frequencyType = 'daily';
+
+  /// Haftalik maqsad (custom/weekly uchun)
+  int targetPerWeek = 7;
+
+  /// Faol kunlar: 1=Dush..7=Yak
+  List<int> activeDays = [];
+
   @Index()
   late DateTime createdAt;
 
@@ -29,6 +40,10 @@ class HabitEntity {
     this.icon = 'check_circle',
     this.color = 0xFF6366F1,
     List<DateTime>? completedDates,
+    this.lifeAreaIds = const [],
+    this.frequencyType = 'daily',
+    this.targetPerWeek = 7,
+    this.activeDays = const [],
     DateTime? createdAt,
   })  : completedDates = completedDates ?? [],
         createdAt = createdAt ?? DateTime.now();
@@ -41,6 +56,10 @@ class HabitEntity {
         'color': color,
         'completedDates':
             completedDates.map((date) => date.toIso8601String()).toList(),
+        'lifeAreaIds': lifeAreaIds,
+        'frequencyType': frequencyType,
+        'targetPerWeek': targetPerWeek,
+        'activeDays': activeDays,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -54,6 +73,11 @@ class HabitEntity {
               ?.map((e) => DateTime.parse(e as String))
               .toList() ??
           [],
+      lifeAreaIds:
+          (json['lifeAreaIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      frequencyType: json['frequencyType'] as String? ?? 'daily',
+      targetPerWeek: json['targetPerWeek'] as int? ?? 7,
+      activeDays: (json['activeDays'] as List<dynamic>?)?.cast<int>() ?? [],
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
     if (json['id'] != null) {

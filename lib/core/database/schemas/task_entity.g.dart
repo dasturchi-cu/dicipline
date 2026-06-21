@@ -42,23 +42,53 @@ const TaskEntitySchema = CollectionSchema(
       name: r'emoji',
       type: IsarType.string,
     ),
-    r'isCompleted': PropertySchema(
+    r'goalId': PropertySchema(
       id: 5,
+      name: r'goalId',
+      type: IsarType.long,
+    ),
+    r'isCompleted': PropertySchema(
+      id: 6,
       name: r'isCompleted',
       type: IsarType.bool,
     ),
+    r'lifeAreaIds': PropertySchema(
+      id: 7,
+      name: r'lifeAreaIds',
+      type: IsarType.stringList,
+    ),
+    r'nextRecurrenceDate': PropertySchema(
+      id: 8,
+      name: r'nextRecurrenceDate',
+      type: IsarType.dateTime,
+    ),
     r'priority': PropertySchema(
-      id: 6,
+      id: 9,
       name: r'priority',
       type: IsarType.long,
     ),
+    r'recurrenceDays': PropertySchema(
+      id: 10,
+      name: r'recurrenceDays',
+      type: IsarType.longList,
+    ),
+    r'recurrenceTemplateId': PropertySchema(
+      id: 11,
+      name: r'recurrenceTemplateId',
+      type: IsarType.long,
+    ),
+    r'recurrenceType': PropertySchema(
+      id: 12,
+      name: r'recurrenceType',
+      type: IsarType.string,
+    ),
     r'title': PropertySchema(
-      id: 7,
+      id: 13,
       name: r'title',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 8,
+      id: 14,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -134,6 +164,32 @@ const TaskEntitySchema = CollectionSchema(
         )
       ],
     ),
+    r'recurrenceType': IndexSchema(
+      id: -3933755233405353474,
+      name: r'recurrenceType',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'recurrenceType',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    ),
+    r'goalId': IndexSchema(
+      id: 2738626632585230611,
+      name: r'goalId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'goalId',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    ),
     r'createdAt': IndexSchema(
       id: -3433535483987302584,
       name: r'createdAt',
@@ -170,6 +226,15 @@ int _taskEntityEstimateSize(
     }
   }
   bytesCount += 3 + object.emoji.length * 3;
+  bytesCount += 3 + object.lifeAreaIds.length * 3;
+  {
+    for (var i = 0; i < object.lifeAreaIds.length; i++) {
+      final value = object.lifeAreaIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.recurrenceDays.length * 8;
+  bytesCount += 3 + object.recurrenceType.length * 3;
   bytesCount += 3 + object.title.length * 3;
   return bytesCount;
 }
@@ -185,10 +250,16 @@ void _taskEntitySerialize(
   writer.writeString(offsets[2], object.description);
   writer.writeDateTime(offsets[3], object.dueDate);
   writer.writeString(offsets[4], object.emoji);
-  writer.writeBool(offsets[5], object.isCompleted);
-  writer.writeLong(offsets[6], object.priority);
-  writer.writeString(offsets[7], object.title);
-  writer.writeDateTime(offsets[8], object.updatedAt);
+  writer.writeLong(offsets[5], object.goalId);
+  writer.writeBool(offsets[6], object.isCompleted);
+  writer.writeStringList(offsets[7], object.lifeAreaIds);
+  writer.writeDateTime(offsets[8], object.nextRecurrenceDate);
+  writer.writeLong(offsets[9], object.priority);
+  writer.writeLongList(offsets[10], object.recurrenceDays);
+  writer.writeLong(offsets[11], object.recurrenceTemplateId);
+  writer.writeString(offsets[12], object.recurrenceType);
+  writer.writeString(offsets[13], object.title);
+  writer.writeDateTime(offsets[14], object.updatedAt);
 }
 
 TaskEntity _taskEntityDeserialize(
@@ -203,11 +274,17 @@ TaskEntity _taskEntityDeserialize(
   object.description = reader.readStringOrNull(offsets[2]);
   object.dueDate = reader.readDateTimeOrNull(offsets[3]);
   object.emoji = reader.readString(offsets[4]);
+  object.goalId = reader.readLongOrNull(offsets[5]);
   object.id = id;
-  object.isCompleted = reader.readBool(offsets[5]);
-  object.priority = reader.readLong(offsets[6]);
-  object.title = reader.readString(offsets[7]);
-  object.updatedAt = reader.readDateTime(offsets[8]);
+  object.isCompleted = reader.readBool(offsets[6]);
+  object.lifeAreaIds = reader.readStringList(offsets[7]) ?? [];
+  object.nextRecurrenceDate = reader.readDateTimeOrNull(offsets[8]);
+  object.priority = reader.readLong(offsets[9]);
+  object.recurrenceDays = reader.readLongList(offsets[10]) ?? [];
+  object.recurrenceTemplateId = reader.readLongOrNull(offsets[11]);
+  object.recurrenceType = reader.readString(offsets[12]);
+  object.title = reader.readString(offsets[13]);
+  object.updatedAt = reader.readDateTime(offsets[14]);
   return object;
 }
 
@@ -229,12 +306,24 @@ P _taskEntityDeserializeProp<P>(
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 6:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 7:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 8:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 9:
+      return (reader.readLong(offset)) as P;
+    case 10:
+      return (reader.readLongList(offset) ?? []) as P;
+    case 11:
+      return (reader.readLongOrNull(offset)) as P;
+    case 12:
+      return (reader.readString(offset)) as P;
+    case 13:
+      return (reader.readString(offset)) as P;
+    case 14:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -281,6 +370,14 @@ extension TaskEntityQueryWhereSort
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         const IndexWhereClause.any(indexName: r'dueDate'),
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhere> anyGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'goalId'),
       );
     });
   }
@@ -691,6 +788,161 @@ extension TaskEntityQueryWhere
         lower: [lowerDueDate],
         includeLower: includeLower,
         upper: [upperDueDate],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> recurrenceTypeEqualTo(
+      String recurrenceType) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'recurrenceType',
+        value: [recurrenceType],
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause>
+      recurrenceTypeNotEqualTo(String recurrenceType) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'recurrenceType',
+              lower: [],
+              upper: [recurrenceType],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'recurrenceType',
+              lower: [recurrenceType],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'recurrenceType',
+              lower: [recurrenceType],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'recurrenceType',
+              lower: [],
+              upper: [recurrenceType],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'goalId',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'goalId',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdEqualTo(
+      int? goalId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'goalId',
+        value: [goalId],
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdNotEqualTo(
+      int? goalId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'goalId',
+              lower: [],
+              upper: [goalId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'goalId',
+              lower: [goalId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'goalId',
+              lower: [goalId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'goalId',
+              lower: [],
+              upper: [goalId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdGreaterThan(
+    int? goalId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'goalId',
+        lower: [goalId],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdLessThan(
+    int? goalId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'goalId',
+        lower: [],
+        upper: [goalId],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterWhereClause> goalIdBetween(
+    int? lowerGoalId,
+    int? upperGoalId, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'goalId',
+        lower: [lowerGoalId],
+        includeLower: includeLower,
+        upper: [upperGoalId],
         includeUpper: includeUpper,
       ));
     });
@@ -1333,6 +1585,76 @@ extension TaskEntityQueryFilter
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> goalIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'goalId',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      goalIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'goalId',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> goalIdEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'goalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> goalIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'goalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> goalIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'goalId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> goalIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'goalId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -1396,6 +1718,305 @@ extension TaskEntityQueryFilter
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lifeAreaIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'lifeAreaIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'lifeAreaIds',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'lifeAreaIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      lifeAreaIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'lifeAreaIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'nextRecurrenceDate',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'nextRecurrenceDate',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'nextRecurrenceDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'nextRecurrenceDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'nextRecurrenceDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      nextRecurrenceDateBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'nextRecurrenceDate',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition> priorityEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1446,6 +2067,361 @@ extension TaskEntityQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysElementEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'recurrenceDays',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysElementGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'recurrenceDays',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysElementLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'recurrenceDays',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysElementBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'recurrenceDays',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceDaysLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'recurrenceDays',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'recurrenceTemplateId',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'recurrenceTemplateId',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'recurrenceTemplateId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'recurrenceTemplateId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'recurrenceTemplateId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTemplateIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'recurrenceTemplateId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'recurrenceType',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'recurrenceType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'recurrenceType',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'recurrenceType',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterFilterCondition>
+      recurrenceTypeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'recurrenceType',
+        value: '',
       ));
     });
   }
@@ -1704,6 +2680,18 @@ extension TaskEntityQuerySortBy
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'goalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByGoalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'goalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByIsCompleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isCompleted', Sort.asc);
@@ -1716,6 +2704,20 @@ extension TaskEntityQuerySortBy
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      sortByNextRecurrenceDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nextRecurrenceDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      sortByNextRecurrenceDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nextRecurrenceDate', Sort.desc);
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByPriority() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'priority', Sort.asc);
@@ -1725,6 +2727,33 @@ extension TaskEntityQuerySortBy
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByPriorityDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'priority', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      sortByRecurrenceTemplateId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceTemplateId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      sortByRecurrenceTemplateIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceTemplateId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> sortByRecurrenceType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      sortByRecurrenceTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceType', Sort.desc);
     });
   }
 
@@ -1815,6 +2844,18 @@ extension TaskEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenByGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'goalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenByGoalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'goalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1839,6 +2880,20 @@ extension TaskEntityQuerySortThenBy
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      thenByNextRecurrenceDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nextRecurrenceDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      thenByNextRecurrenceDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'nextRecurrenceDate', Sort.desc);
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenByPriority() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'priority', Sort.asc);
@@ -1848,6 +2903,33 @@ extension TaskEntityQuerySortThenBy
   QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenByPriorityDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'priority', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      thenByRecurrenceTemplateId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceTemplateId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      thenByRecurrenceTemplateIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceTemplateId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy> thenByRecurrenceType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QAfterSortBy>
+      thenByRecurrenceTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceType', Sort.desc);
     });
   }
 
@@ -1911,15 +2993,55 @@ extension TaskEntityQueryWhereDistinct
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByGoalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'goalId');
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByIsCompleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isCompleted');
     });
   }
 
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByLifeAreaIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lifeAreaIds');
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct>
+      distinctByNextRecurrenceDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'nextRecurrenceDate');
+    });
+  }
+
   QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByPriority() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'priority');
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByRecurrenceDays() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'recurrenceDays');
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct>
+      distinctByRecurrenceTemplateId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'recurrenceTemplateId');
+    });
+  }
+
+  QueryBuilder<TaskEntity, TaskEntity, QDistinct> distinctByRecurrenceType(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'recurrenceType',
+          caseSensitive: caseSensitive);
     });
   }
 
@@ -1975,15 +3097,55 @@ extension TaskEntityQueryProperty
     });
   }
 
+  QueryBuilder<TaskEntity, int?, QQueryOperations> goalIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'goalId');
+    });
+  }
+
   QueryBuilder<TaskEntity, bool, QQueryOperations> isCompletedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isCompleted');
     });
   }
 
+  QueryBuilder<TaskEntity, List<String>, QQueryOperations>
+      lifeAreaIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lifeAreaIds');
+    });
+  }
+
+  QueryBuilder<TaskEntity, DateTime?, QQueryOperations>
+      nextRecurrenceDateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'nextRecurrenceDate');
+    });
+  }
+
   QueryBuilder<TaskEntity, int, QQueryOperations> priorityProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'priority');
+    });
+  }
+
+  QueryBuilder<TaskEntity, List<int>, QQueryOperations>
+      recurrenceDaysProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'recurrenceDays');
+    });
+  }
+
+  QueryBuilder<TaskEntity, int?, QQueryOperations>
+      recurrenceTemplateIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'recurrenceTemplateId');
+    });
+  }
+
+  QueryBuilder<TaskEntity, String, QQueryOperations> recurrenceTypeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'recurrenceType');
     });
   }
 

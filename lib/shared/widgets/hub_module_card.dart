@@ -14,7 +14,6 @@ class HubModuleCard extends StatelessWidget {
     required this.onTap,
     this.index = 0,
     this.accentColor = AppColors.primary,
-    this.gradient,
     this.trailing,
     this.badge,
   });
@@ -25,37 +24,29 @@ class HubModuleCard extends StatelessWidget {
   final VoidCallback onTap;
   final int index;
   final Color accentColor;
-  final List<Color>? gradient;
   final Widget? trailing;
   final String? badge;
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final isGradient = gradient != null;
 
     return FadeIn(
       index: index,
       child: AppCard(
-        variant: isGradient ? AppCardVariant.gradient : AppCardVariant.elevated,
-        gradientColors: gradient,
+        variant: AppCardVariant.outlined,
         onTap: onTap,
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: isGradient
-                    ? Colors.white.withValues(alpha: 0.2)
-                    : accentColor.withValues(alpha: 0.12),
+                color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: Icon(
-                icon,
-                color: isGradient ? Colors.white : accentColor,
-              ),
+              child: Icon(icon, color: accentColor, size: 22),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -64,9 +55,8 @@ class HubModuleCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: isGradient ? Colors.white : null,
-                          fontWeight: FontWeight.w700,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -75,9 +65,7 @@ class HubModuleCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isGradient
-                              ? Colors.white.withValues(alpha: 0.88)
-                              : AppColors.textSecondary(brightness),
+                          color: AppColors.textSecondary(brightness),
                         ),
                   ),
                 ],
@@ -90,15 +78,13 @@ class HubModuleCard extends StatelessWidget {
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: isGradient
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : accentColor.withValues(alpha: 0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Text(
                   badge!,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: isGradient ? Colors.white : accentColor,
+                        color: accentColor,
                         fontWeight: FontWeight.w700,
                       ),
                 ),
@@ -107,10 +93,8 @@ class HubModuleCard extends StatelessWidget {
             ],
             trailing ??
                 Icon(
-                  Icons.arrow_forward_rounded,
-                  color: isGradient
-                      ? Colors.white.withValues(alpha: 0.9)
-                      : AppColors.textSecondary(brightness),
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary(brightness),
                   size: 20,
                 ),
           ],
@@ -139,7 +123,7 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            label.toUpperCase(),
+            label,
             style: AppTypography.sectionLabel(Theme.of(context).brightness),
           ),
           const Spacer(),

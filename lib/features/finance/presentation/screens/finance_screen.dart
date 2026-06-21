@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:rejabon_ai/core/constants/app_strings.dart';
 import 'package:rejabon_ai/core/database/schemas/finance_transaction_entity.dart';
+import 'package:rejabon_ai/core/integration/action_reward_bridge.dart';
+import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
+import 'package:rejabon_ai/core/utils/content_insets.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
 import 'package:rejabon_ai/shared/widgets/app_bottom_sheet.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
@@ -32,10 +35,11 @@ class FinanceScreen extends ConsumerWidget {
 
     return ModuleScreen(
       title: AppStrings.finance,
-      floatingActionButton: FloatingActionButton.extended(
+      inShell: false,
+      showGlobalCapture: false,
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showTransactionDialog(context, ref, type: tab),
-        icon: const Icon(Icons.add_rounded),
-        label: Text(tab == 0 ? AppStrings.newIncome : AppStrings.newExpense),
+        child: const Icon(Icons.add_rounded),
       ),
       body: txsAsync.when(
         loading: () => const AppLoadingState(),
@@ -49,30 +53,27 @@ class FinanceScreen extends ConsumerWidget {
           final filtered = txs.where((t) => t.type == tab).toList();
 
           return ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: ContentInsets.scrollPadding(context, inShell: true),
             children: [
               FadeIn(
                 child: AppCard(
-                  variant: AppCardVariant.gradient,
-                  gradientColors: balance >= 0
-                      ? AppColors.momentumGradient
-                      : [AppColors.error, const Color(0xFFDC2626)],
+                  variant: AppCardVariant.outlined,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppStrings.balance.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              letterSpacing: 0.8,
+                        AppStrings.balance,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: AppColors.textSecondary(
+                                Theme.of(context).brightness,
+                              ),
                             ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         formatMoney(balance),
-                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -82,8 +83,7 @@ class FinanceScreen extends ConsumerWidget {
                             child: _SummaryItem(
                               label: AppStrings.totalIncome,
                               value: formatMoney(income),
-                              color: Colors.white,
-                              light: true,
+                              color: AppColors.success,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -91,8 +91,7 @@ class FinanceScreen extends ConsumerWidget {
                             child: _SummaryItem(
                               label: AppStrings.totalExpense,
                               value: formatMoney(expense),
-                              color: Colors.white.withValues(alpha: 0.9),
-                              light: true,
+                              color: AppColors.error,
                             ),
                           ),
                         ],
@@ -117,9 +116,6 @@ class FinanceScreen extends ConsumerWidget {
                   icon: Icons.account_balance_wallet_outlined,
                   title: AppStrings.noFinance,
                   description: AppStrings.noFinanceDesc,
-                  actionLabel: AppStrings.add,
-                  onAction: () =>
-                      _showTransactionDialog(context, ref, type: tab),
                 )
               else ...[
                 if (filtered.isEmpty)
@@ -404,10 +400,11 @@ Future<void> _showTransactionDialog(
                               : descCtrl.text.trim(),
                         ),
                       );
+                  invalidateDerivedProviders(ref);
                   if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   if (context.mounted) {
-                    showSavedSnackBar(context);
+                    await rewardFinanceLog(ref, context);
                   }
                 },
               ),

@@ -43,6 +43,15 @@ class GoalEntity {
 
   List<MilestoneEmbedded> milestones = [];
 
+  /// Hayot sohalari
+  List<String> lifeAreaIds = [];
+
+  /// Uzoq muddat: 5y, 1y, 3m, 1m yoki null (kundalik)
+  String? horizon;
+
+  /// Yuqori darajadagi maqsad bog'lanishi
+  int? parentGoalId;
+
   @Index()
   DateTime? targetDate;
 
@@ -57,6 +66,9 @@ class GoalEntity {
     this.description,
     this.progress = 0,
     List<MilestoneEmbedded>? milestones,
+    this.lifeAreaIds = const [],
+    this.horizon,
+    this.parentGoalId,
     this.targetDate,
     DateTime? createdAt,
   })  : milestones = milestones ?? [],
@@ -69,6 +81,9 @@ class GoalEntity {
         'description': description,
         'progress': progress,
         'milestones': milestones.map((m) => m.toJson()).toList(),
+        'lifeAreaIds': lifeAreaIds,
+        'horizon': horizon,
+        'parentGoalId': parentGoalId,
         'targetDate': targetDate?.toIso8601String(),
         'createdAt': createdAt.toIso8601String(),
       };
@@ -83,6 +98,10 @@ class GoalEntity {
               ?.map((e) => MilestoneEmbedded.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      lifeAreaIds:
+          (json['lifeAreaIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      horizon: json['horizon'] as String?,
+      parentGoalId: json['parentGoalId'] as int?,
       targetDate: json['targetDate'] != null
           ? DateTime.parse(json['targetDate'] as String)
           : null,

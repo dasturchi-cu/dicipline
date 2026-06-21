@@ -13,11 +13,11 @@ import '../database/schemas/plan_entity.dart';
 import '../database/schemas/study_session_entity.dart';
 import '../database/schemas/study_subject_entity.dart';
 import '../database/schemas/task_entity.dart';
+import '../database/schemas/vision_board_item_entity.dart';
 import '../database/schemas/workout_entity.dart';
 import '../repositories/repositories.dart';
 import '../theme/app_colors.dart';
 import '../../features/ai_coach/domain/ai_coach_service.dart';
-import '../../features/gamification/domain/achievement_service.dart';
 import 'core_providers.dart';
 
 export '../constants/app_categories.dart';
@@ -83,6 +83,10 @@ final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
   return DocumentRepository(ref.watch(isarServiceProvider).isar);
 });
 
+final visionBoardRepositoryProvider = Provider<VisionBoardRepository>((ref) {
+  return VisionBoardRepository(ref.watch(isarServiceProvider).isar);
+});
+
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
   return PlanRepository(ref.watch(isarServiceProvider).isar);
 });
@@ -132,6 +136,11 @@ final calendarEventsProvider = StreamProvider<List<CalendarEventEntity>>((ref) {
 
 final documentsProvider = StreamProvider<List<DocumentEntity>>((ref) {
   return ref.watch(documentRepositoryProvider).watchAll();
+});
+
+final visionBoardItemsProvider =
+    StreamProvider<List<VisionBoardItemEntity>>((ref) {
+  return ref.watch(visionBoardRepositoryProvider).watchAll();
 });
 
 final plansProvider = StreamProvider<List<PlanEntity>>((ref) {
@@ -184,21 +193,6 @@ final studyProgressProvider = FutureProvider<List<StudyProgress>>((ref) {
 final financeCategoryStatisticsProvider =
     FutureProvider<List<CategoryStatistics>>((ref) {
   return ref.watch(financeRepositoryProvider).getStatisticsByCategory();
-});
-
-final achievementsProvider = FutureProvider<List<Achievement>>((ref) async {
-  final habitRepo = ref.watch(habitRepositoryProvider);
-  final tasks = await ref.watch(taskRepositoryProvider).getAll();
-  final habits = await habitRepo.getAll();
-  final goals = await ref.watch(goalRepositoryProvider).getAll();
-  final journal = await ref.watch(journalRepositoryProvider).getAll();
-  return AchievementService.compute(
-    tasks: tasks,
-    habits: habits,
-    goals: goals,
-    journal: journal,
-    habitRepo: habitRepo,
-  );
 });
 
 // ── UI helpers ──────────────────────────────────────────────────────────────

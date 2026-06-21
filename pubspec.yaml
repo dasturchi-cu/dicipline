@@ -27,6 +27,8 @@ dependencies:
   google_fonts: ^6.2.1
   http: ^1.4.0
   speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
+  home_widget: ^0.7.0
 
 dev_dependencies:
   flutter_test:
@@ -42,4 +44,4 @@ flutter:
       fonts:
         - asset: assets/fonts/MaterialIcons-Regular.otf
   assets:
-    - assets/ai.env
+    - assets/ai.env.example
