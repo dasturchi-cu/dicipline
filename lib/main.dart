@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
 import 'core/ai/ai_orchestrator.dart';
@@ -9,6 +10,7 @@ import 'features/settings/presentation/providers/settings_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   await IsarService.init();
   await NotificationService.init();

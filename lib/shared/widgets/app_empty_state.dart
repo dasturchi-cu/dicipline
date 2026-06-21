@@ -24,10 +24,8 @@ class AppEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final secondaryColor = theme.brightness == Brightness.light
-        ? AppColors.lightTextSecondary
-        : AppColors.darkTextSecondary;
+    final brightness = Theme.of(context).brightness;
+    final secondaryColor = AppColors.textSecondary(brightness);
 
     return Center(
       child: Padding(
@@ -36,15 +34,30 @@ class AppEmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: brightness == Brightness.light
+                      ? [
+                          AppColors.primaryLight,
+                          AppColors.primary.withValues(alpha: 0.08),
+                        ]
+                      : [
+                          AppColors.darkSurfaceElevated,
+                          AppColors.primary.withValues(alpha: 0.15),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(
+                  color: AppColors.border(brightness, subtle: true),
+                ),
               ),
               child: Icon(
                 icon,
-                size: 36,
+                size: 40,
                 color: AppColors.primary,
               ),
             ),
@@ -52,16 +65,16 @@ class AppEmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             if (description != null) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
                 description!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: secondaryColor,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: secondaryColor,
+                    ),
               ),
             ],
             if (actionLabel != null && onAction != null) ...[

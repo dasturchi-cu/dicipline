@@ -11,9 +11,11 @@ import 'package:rejabon_ai/core/constants/app_strings.dart';
 import 'package:rejabon_ai/core/database/schemas/calendar_event_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/document_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/note_entity.dart';
+import 'package:rejabon_ai/core/database/schemas/plan_entity.dart';
 import 'package:rejabon_ai/core/providers/core_providers.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
+import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/notifications/calendar_notification_helper.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
@@ -22,80 +24,21 @@ import 'package:rejabon_ai/features/settings/presentation/providers/ai_status_pr
 import 'package:rejabon_ai/features/settings/presentation/providers/settings_provider.dart';
 import 'package:rejabon_ai/features/settings/presentation/widgets/ai_status_card.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
+import 'package:rejabon_ai/shared/widgets/achievement_celebration.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
 import 'package:rejabon_ai/shared/widgets/calendar_month_view.dart';
 import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_feedback.dart';
 import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
 import 'package:rejabon_ai/shared/widgets/emoji_picker_field.dart';
+import 'package:rejabon_ai/shared/widgets/fade_in.dart';
+import 'package:rejabon_ai/shared/widgets/glass_panel.dart';
+import 'package:rejabon_ai/shared/widgets/hub_module_card.dart';
 import 'package:rejabon_ai/shared/widgets/module_screen.dart';
 
-class MoreHubScreen extends StatelessWidget {
-  const MoreHubScreen({super.key});
-
-  static const _items = [
-    (
-      title: AppStrings.notes,
-      route: '/boshqa/eslatmalar',
-      icon: Icons.sticky_note_2_outlined,
-    ),
-    (
-      title: AppStrings.calendar,
-      route: '/boshqa/kalendar',
-      icon: Icons.calendar_month_outlined,
-    ),
-    (
-      title: AppStrings.documents,
-      route: '/boshqa/hujjatlar',
-      icon: Icons.folder_outlined,
-    ),
-    (
-      title: AppStrings.aiCoach,
-      route: '/boshqa/murabbiy',
-      icon: Icons.psychology_outlined,
-    ),
-    (
-      title: AppStrings.settings,
-      route: '/boshqa/sozlamalar',
-      icon: Icons.settings_outlined,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return ModuleScreen(
-      title: AppStrings.moreHub,
-      body: ListView.separated(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: _items.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return AppCard(
-            onTap: () => context.push(item.route),
-            child: Row(
-              children: [
-                Icon(item.icon, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// -- Notes ----------------------------------------------------------------
+export 'package:rejabon_ai/features/more/presentation/widgets/more_hub_screen.dart';
 
 final noteSearchProvider = StateProvider<String>((ref) => '');
 
@@ -332,6 +275,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(calendarEventsProvider);
+    final plansAsync = ref.watch(plansProvider);
+    final planAsync = ref.watch(planForDateProvider(_selectedDate));
 
     return ModuleScreen(
       title: AppStrings.calendar,
@@ -346,15 +291,26 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           onRetry: () => ref.invalidate(calendarEventsProvider),
         ),
         data: (events) {
+          final plans = plansAsync.valueOrNull ?? [];
+          final planDays = plans
+              .where((plan) => plan.items.isNotEmpty)
+              .map((plan) => AppDateFormat.dateOnly(plan.planDate))
+              .toSet();
           final dayEvents = events
               .where((e) => AppDateFormat.isSameDay(e.startTime, _selectedDate))
               .toList();
+          final dayPlan = planAsync.valueOrNull;
+          final planItems = dayPlan == null
+              ? <PlanItemEmbedded>[]
+              : (List<PlanItemEmbedded>.from(dayPlan.items)
+                ..sort((a, b) => a.startTime.compareTo(b.startTime)));
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               CalendarMonthView(
                 events: events,
+                planDays: planDays,
                 selectedDate: _selectedDate,
                 onDateSelected: (date) => setState(() => _selectedDate = date),
               ),
@@ -363,6 +319,66 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 AppDateFormat.formatDate(_selectedDate),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+              if (planItems.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        AppStrings.dayPlan,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/reja'),
+                      child: const Text(AppStrings.aiPlanning),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ...planItems.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: AppCard(
+                      onTap: () => context.push('/reja'),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: item.isCompleted
+                                  ? AppColors.success
+                                  : item.isMissed
+                                      ? AppColors.error
+                                      : AppColors.warning,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${item.emoji} ${item.title}',
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                                Text(
+                                  '${AppDateFormat.formatTime(item.startTime)} — ${AppDateFormat.formatTime(item.endTime)}',
+                                  style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               if (dayEvents.isEmpty)
                 AppEmptyState(
@@ -876,59 +892,113 @@ class AiCoachScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              _AiCoachStatusBanner(status: ref.watch(aiStatusProvider)),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                AppStrings.dailyRecommendations,
-                style: Theme.of(context).textTheme.titleMedium,
+              FadeIn(
+                child: AppCard(
+                  variant: AppCardVariant.gradient,
+                  gradientColors: AppColors.heroGradientLight,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Icon(
+                          Icons.psychology_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.aiCoach,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(color: Colors.white),
+                            ),
+                            Text(
+                              '${tips.length} ${AppStrings.dailyRecommendations.toLowerCase()}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
-              ...tips.map(
-                (tip) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: AppCard(
-                    variant: AppCardVariant.filled,
-                    onTap: tip.actionRoute != null
-                        ? () => context.push(tip.actionRoute!)
-                        : null,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.lightbulb_outline_rounded,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tip.title,
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(tip.description),
-                              if (tip.actionRoute != null) ...[
-                                const SizedBox(height: AppSpacing.sm),
+              _AiCoachStatusBanner(status: ref.watch(aiStatusProvider)),
+              const SizedBox(height: AppSpacing.lg),
+              SectionHeader(label: AppStrings.dailyRecommendations),
+              const SizedBox(height: AppSpacing.sm),
+              ...tips.asMap().entries.map(
+                (entry) => FadeIn(
+                  index: entry.key,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: GlassPanel(
+                      onTap: entry.value.actionRoute != null
+                          ? () => context.push(entry.value.actionRoute!)
+                          : null,
+                      opacity: 0.88,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: const Icon(
+                              Icons.lightbulb_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  AppStrings.goToAction,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
-                                      ?.copyWith(color: AppColors.primary),
+                                  entry.value.title,
+                                  style: Theme.of(context).textTheme.titleSmall,
                                 ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(entry.value.description),
+                                if (entry.value.actionRoute != null) ...[
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Text(
+                                    AppStrings.goToAction,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                        if (tip.actionRoute != null)
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: AppColors.primary,
-                            size: 18,
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1071,7 +1141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final content = await File(path).readAsString();
       await backup.restoreFromJson(content);
       invalidateAllDataProviders(ref);
-      ref.invalidate(aiTipsProvider);
+      resetAchievementCelebrations();
+      await syncAllNotifications(ref);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(AppStrings.restoreSuccess)),
@@ -1191,9 +1262,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     .setNotificationEnabled(enabled);
 
                 if (enabled) {
-                  await ref
-                      .read(calendarNotificationHelperProvider)
-                      .rescheduleAll(ref);
+                  await syncAllNotifications(ref);
                 } else {
                   await ref.read(notificationServiceProvider).cancelAll();
                 }
@@ -1235,9 +1304,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       await ref
                           .read(settingsProvider.notifier)
                           .setNotificationLeadMinutes(value);
-                      await ref
-                          .read(calendarNotificationHelperProvider)
-                          .rescheduleAll(ref);
+                      await syncAllNotifications(ref);
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text(AppStrings.saved)),

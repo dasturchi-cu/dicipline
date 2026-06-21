@@ -9,6 +9,7 @@ import '../database/schemas/goal_entity.dart';
 import '../database/schemas/habit_entity.dart';
 import '../database/schemas/journal_entry_entity.dart';
 import '../database/schemas/note_entity.dart';
+import '../database/schemas/plan_entity.dart';
 import '../database/schemas/study_session_entity.dart';
 import '../database/schemas/study_subject_entity.dart';
 import '../database/schemas/task_entity.dart';
@@ -82,6 +83,10 @@ final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
   return DocumentRepository(ref.watch(isarServiceProvider).isar);
 });
 
+final planRepositoryProvider = Provider<PlanRepository>((ref) {
+  return PlanRepository(ref.watch(isarServiceProvider).isar);
+});
+
 // ── Reactive stream providers ───────────────────────────────────────────────
 
 final tasksProvider = StreamProvider<List<TaskEntity>>((ref) {
@@ -129,6 +134,33 @@ final documentsProvider = StreamProvider<List<DocumentEntity>>((ref) {
   return ref.watch(documentRepositoryProvider).watchAll();
 });
 
+final plansProvider = StreamProvider<List<PlanEntity>>((ref) {
+  return ref.watch(planRepositoryProvider).watchAll();
+});
+
+final todayPlanProvider = StreamProvider<PlanEntity?>((ref) {
+  return ref.watch(planRepositoryProvider).watchForDate(DateTime.now());
+});
+
+final upcomingPlanProvider = StreamProvider<PlanEntity?>((ref) {
+  return ref.watch(planRepositoryProvider).watchAll().map((plans) {
+    final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    final candidates = plans
+        .where((p) {
+          final d = DateTime(p.planDate.year, p.planDate.month, p.planDate.day);
+          return !d.isBefore(todayNorm) && p.items.isNotEmpty;
+        })
+        .toList()
+      ..sort((a, b) => a.planDate.compareTo(b.planDate));
+    return candidates.isEmpty ? null : candidates.first;
+  });
+});
+
+final planForDateProvider = StreamProvider.family<PlanEntity?, DateTime>((ref, date) {
+  return ref.watch(planRepositoryProvider).watchForDate(date);
+});
+
 final upcomingEventsProvider = StreamProvider<List<CalendarEventEntity>>((ref) {
   return ref.watch(calendarRepositoryProvider).watchUpcomingEvents();
 });
@@ -170,39 +202,7 @@ final achievementsProvider = FutureProvider<List<Achievement>>((ref) async {
 });
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
-
-Future<bool> confirmDelete(BuildContext context) async {
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text(AppStrings.delete),
-      content: const Text(AppStrings.deleteConfirm),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text(AppStrings.cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text(AppStrings.delete),
-        ),
-      ],
-    ),
-  );
-  return result ?? false;
-}
-
-void showSavedSnackBar(BuildContext context, {String? message}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message ?? AppStrings.saved)),
-  );
-}
-
-void showDeletedSnackBar(BuildContext context) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text(AppStrings.deleted)),
-  );
-}
+// Feedback helpers live in shared/widgets/app_feedback.dart
 
 int habitStreak(HabitEntity habit) {
   final dates = habit.completedDates
@@ -278,23 +278,3 @@ List<String> generateAiTips({
   );
 }
 
-void invalidateAllDataProviders(WidgetRef ref) {
-  ref.invalidate(tasksProvider);
-  ref.invalidate(habitsProvider);
-  ref.invalidate(goalsProvider);
-  ref.invalidate(notesProvider);
-  ref.invalidate(journalProvider);
-  ref.invalidate(workoutsProvider);
-  ref.invalidate(studySubjectsProvider);
-  ref.invalidate(studySessionsProvider);
-  ref.invalidate(financeTransactionsProvider);
-  ref.invalidate(calendarEventsProvider);
-  ref.invalidate(documentsProvider);
-  ref.invalidate(upcomingEventsProvider);
-  ref.invalidate(financeBalanceProvider);
-  ref.invalidate(habitStatisticsProvider);
-  ref.invalidate(workoutStatisticsProvider);
-  ref.invalidate(studyProgressProvider);
-  ref.invalidate(financeCategoryStatisticsProvider);
-  ref.invalidate(achievementsProvider);
-}

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -22,6 +23,9 @@ class NotificationService {
   bool get isInitialized => _initialized;
 
   static Future<void> init() => instance.initialize();
+
+  /// Bildirishnoma bosilganda chaqiriladi (payload = route).
+  static void Function(String payload)? onPayloadTap;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -61,6 +65,7 @@ class NotificationService {
         return false;
       }
       final granted = await androidPlugin.requestNotificationsPermission();
+      await androidPlugin.requestExactAlarmsPermission();
       return granted ?? false;
     }
 
@@ -110,17 +115,37 @@ class NotificationService {
       return;
     }
 
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      _notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload,
-    );
+    final when = tz.TZDateTime.from(scheduledDate, tz.local);
+    final details = _notificationDetails();
+
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+    } on PlatformException catch (e) {
+      if (e.code != 'exact_alarms_not_permitted') {
+        rethrow;
+      }
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+    }
   }
 
   Future<void> cancel(int id) => _plugin.cancel(id);
@@ -170,6 +195,9 @@ class NotificationService {
   }
 
   void _onNotificationResponse(NotificationResponse response) {
-    // Navigation or action handling can be wired through a callback later.
+    final payload = response.payload;
+    if (payload != null && payload.isNotEmpty) {
+      onPayloadTap?.call(payload);
+    }
   }
 }

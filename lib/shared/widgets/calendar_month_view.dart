@@ -12,9 +12,11 @@ class CalendarMonthView extends StatefulWidget {
     required this.events,
     required this.selectedDate,
     required this.onDateSelected,
+    this.planDays = const {},
   });
 
   final List<CalendarEventEntity> events;
+  final Set<DateTime> planDays;
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
 
@@ -113,6 +115,7 @@ class _CalendarMonthViewState extends State<CalendarMonthView> {
               final isSelected = AppDateFormat.isSameDay(date, widget.selectedDate);
               final isToday = AppDateFormat.isToday(date);
               final hasEvents = _eventDays.contains(normalized);
+              final hasPlan = widget.planDays.contains(normalized);
 
               return GestureDetector(
                 onTap: () => widget.onDateSelected(normalized),
@@ -142,17 +145,35 @@ class _CalendarMonthViewState extends State<CalendarMonthView> {
                               : FontWeight.normal,
                         ),
                       ),
-                      if (hasEvents)
-                        Container(
-                          width: 5,
-                          height: 5,
-                          margin: const EdgeInsets.only(top: 2),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.secondary,
-                            shape: BoxShape.circle,
-                          ),
+                      if (hasEvents || hasPlan)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (hasEvents)
+                              Container(
+                                width: 5,
+                                height: 5,
+                                margin: const EdgeInsets.only(top: 2, right: 2),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.secondary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            if (hasPlan)
+                              Container(
+                                width: 5,
+                                height: 5,
+                                margin: const EdgeInsets.only(top: 2),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.white70
+                                      : AppColors.warning,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
                         ),
                     ],
                   ),

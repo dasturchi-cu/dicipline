@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:rejabon_ai/core/constants/app_strings.dart';
 import 'package:rejabon_ai/core/database/schemas/goal_entity.dart';
@@ -9,84 +8,27 @@ import 'package:rejabon_ai/core/database/schemas/journal_entry_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/study_session_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/study_subject_entity.dart';
 import 'package:rejabon_ai/core/database/schemas/workout_entity.dart';
+import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
+import 'package:rejabon_ai/shared/widgets/achievement_celebration.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
+import 'package:rejabon_ai/shared/widgets/app_bottom_sheet.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
 import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_feedback.dart';
 import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
+import 'package:rejabon_ai/shared/widgets/animated_check_button.dart';
 import 'package:rejabon_ai/shared/widgets/emoji_picker_field.dart';
+import 'package:rejabon_ai/shared/widgets/progress_ring.dart';
+import 'package:rejabon_ai/shared/widgets/hub_module_card.dart';
 import 'package:rejabon_ai/shared/widgets/module_screen.dart';
 
-class LifeHubScreen extends StatelessWidget {
-  const LifeHubScreen({super.key});
-
-  static const _items = [
-    (
-      title: AppStrings.habits,
-      route: '/hayot/odatlar',
-      icon: Icons.repeat_rounded,
-    ),
-    (
-      title: AppStrings.goals,
-      route: '/hayot/maqsadlar',
-      icon: Icons.flag_outlined,
-    ),
-    (
-      title: AppStrings.journal,
-      route: '/hayot/kundalik',
-      icon: Icons.menu_book_outlined,
-    ),
-    (
-      title: AppStrings.workout,
-      route: '/hayot/mashq',
-      icon: Icons.fitness_center_outlined,
-    ),
-    (
-      title: AppStrings.study,
-      route: '/hayot/ta\'lim',
-      icon: Icons.school_outlined,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return ModuleScreen(
-      title: AppStrings.lifeHub,
-      body: ListView.separated(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: _items.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return AppCard(
-            onTap: () => context.push(item.route),
-            child: Row(
-              children: [
-                Icon(item.icon, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ── Habits ──────────────────────────────────────────────────────────────────
+export 'package:rejabon_ai/features/life/presentation/widgets/life_hub_screen.dart';
 
 class HabitsScreen extends ConsumerWidget {
   const HabitsScreen({super.key});
@@ -128,7 +70,10 @@ class HabitsScreen extends ConsumerWidget {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: AppCard(
-                    variant: AppCardVariant.filled,
+                    variant: stats.longestStreak >= 7
+                        ? AppCardVariant.gradient
+                        : AppCardVariant.filled,
+                    gradientColors: AppColors.streakGradient,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -175,11 +120,20 @@ class HabitsScreen extends ConsumerWidget {
                 child: AppCard(
                   child: Row(
                     children: [
-                      Checkbox(
-                        value: done,
-                        activeColor: AppColors.primary,
-                        onChanged: (_) => repo.toggleToday(habit),
+                      AnimatedCheckButton(
+                        checked: done,
+                        activeColor: AppColors.fire,
+                        celebrateOnCheck: true,
+                        onChanged: (_) async {
+                          await repo.toggleToday(habit);
+                          invalidateDerivedProviders(ref);
+                          if (context.mounted && !done) {
+                            showCompletedSnackBar(context);
+                            await celebrateNewAchievements(ref, context);
+                          }
+                        },
                       ),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,64 +197,67 @@ class HabitsScreen extends ConsumerWidget {
     var emoji = habit?.emoji ?? '';
     final formKey = GlobalKey<FormState>();
 
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-        title: Text(habit == null ? AppStrings.newHabit : AppStrings.editHabit),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(
-            controller: nameCtrl,
-            label: AppStrings.habitName,
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+    await showAppBottomSheet<void>(
+      context,
+      title: habit == null ? AppStrings.newHabit : AppStrings.editHabit,
+      child: StatefulBuilder(
+        builder: (ctx, setDialogState) => Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
           ),
-              const SizedBox(height: AppSpacing.sm),
-              EmojiPickerField(
-                selected: emoji,
-                onSelected: (e) => setDialogState(() => emoji = e),
-              ),
-            ],
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTextField(
+                  controller: nameCtrl,
+                  label: AppStrings.habitName,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Nom kerak' : null,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                EmojiPickerField(
+                  selected: emoji,
+                  onSelected: (e) => setDialogState(() => emoji = e),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  label: AppStrings.save,
+                  isExpanded: true,
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    final repo = ref.read(habitRepositoryProvider);
+                    if (habit != null) {
+                      habit
+                        ..name = nameCtrl.text.trim()
+                        ..emoji = emoji;
+                      await repo.save(habit);
+                    } else {
+                      await repo.save(
+                        HabitEntity.create(
+                          name: nameCtrl.text.trim(),
+                          emoji: emoji,
+                        ),
+                      );
+                    }
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (context.mounted) {
+                      showSavedSnackBar(context);
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(AppStrings.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              final repo = ref.read(habitRepositoryProvider);
-              if (habit != null) {
-                habit
-                  ..name = nameCtrl.text.trim()
-                  ..emoji = emoji;
-                await repo.save(habit);
-              } else {
-                await repo.save(
-                  HabitEntity.create(
-                    name: nameCtrl.text.trim(),
-                    emoji: emoji,
-                  ),
-                );
-              }
-              if (context.mounted) {
-                showSavedSnackBar(context);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text(AppStrings.save),
-          ),
-        ],
         ),
       ),
     );
-    nameCtrl.dispose();
+    deferDispose(() => nameCtrl.dispose());
   }
 }
 
@@ -511,15 +468,43 @@ class _GoalCard extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
+        variant: AppCardVariant.elevated,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                ProgressRing(
+                  progress: goal.progress / 100,
+                  size: 56,
+                  strokeWidth: 5,
+                  color: AppColors.primary,
                   child: Text(
-                    displayWithEmoji(title: goal.title, emoji: goal.emoji),
-                    style: Theme.of(context).textTheme.titleMedium,
+                    '${goal.progress.round()}%',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayWithEmoji(title: goal.title, emoji: goal.emoji),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (goal.description != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          goal.description!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 IconButton(
@@ -536,28 +521,6 @@ class _GoalCard extends ConsumerWidget {
                 ),
               ],
             ),
-            if (goal.description != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(goal.description!),
-            ],
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: LinearProgressIndicator(
-                      value: goal.progress / 100,
-                      minHeight: 8,
-                      backgroundColor: AppColors.primaryLight,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text('${goal.progress.round()}%'),
-              ],
-            ),
             if (goal.targetDate != null) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -566,10 +529,7 @@ class _GoalCard extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.md),
-            Text(
-              AppStrings.milestones,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            SectionHeader(label: AppStrings.milestones),
             ...goal.milestones.map(
               (m) => CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -747,30 +707,51 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     final mood = i + 1;
                     final selected = _mood == mood;
                     return GestureDetector(
-                      onTap: () => setState(() => _mood = mood),
-                      child: Column(
-                        children: [
-                          Text(
-                            moodEmoji(mood),
-                            style: TextStyle(
-                              fontSize: selected ? 32 : 24,
+                      onTap: () {
+                        hapticLight();
+                        setState(() => _mood = mood);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.1)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: selected
+                              ? Border.all(color: AppColors.primary)
+                              : null,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              moodEmoji(mood),
+                              style: TextStyle(
+                                fontSize: selected ? 36 : 26,
+                              ),
                             ),
-                          ),
-                          Text(
-                            moodLabel(mood),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: selected
-                                  ? AppColors.primary
-                                  : Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.color,
-                              fontWeight:
-                                  selected ? FontWeight.bold : FontWeight.normal,
+                            Text(
+                              moodLabel(mood),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: selected
+                                    ? AppColors.primary
+                                    : Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                fontWeight: selected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   }),
@@ -1106,11 +1087,42 @@ class StudyScreen extends ConsumerWidget {
                       final subjectName = subjectMatches.isEmpty
                           ? 'Fan'
                           : subjectMatches.first.name;
-                      return ListTile(
-                        leading: const Icon(Icons.timer_outlined),
-                        title: Text(subjectName),
-                        subtitle: Text(
-                          '${AppDateFormat.formatDate(session.date)} · ${session.durationMinutes} daq',
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: AppCard(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.timer_outlined,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      subjectName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall,
+                                    ),
+                                    Text(
+                                      '${AppDateFormat.formatDate(session.date)} · ${session.durationMinutes} daq',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),

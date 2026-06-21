@@ -5,6 +5,7 @@ export 'goal_repository.dart';
 export 'habit_repository.dart';
 export 'journal_repository.dart';
 export 'note_repository.dart';
+export 'plan_repository.dart';
 export 'study_repository.dart';
 export 'task_repository.dart';
 export 'workout_repository.dart';

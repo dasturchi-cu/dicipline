@@ -8,6 +8,7 @@ import '../database/schemas/goal_entity.dart';
 import '../database/schemas/habit_entity.dart';
 import '../database/schemas/journal_entry_entity.dart';
 import '../database/schemas/note_entity.dart';
+import '../database/schemas/plan_entity.dart';
 import '../database/schemas/study_session_entity.dart';
 import '../database/schemas/study_subject_entity.dart';
 import '../database/schemas/task_entity.dart';
@@ -41,6 +42,7 @@ class BackupService {
     final finance = await _isar.financeTransactionEntitys.where().findAll();
     final events = await _isar.calendarEventEntitys.where().findAll();
     final documents = await _isar.documentEntitys.where().findAll();
+    final plans = await _isar.planEntitys.where().findAll();
 
     return {
       'version': currentVersion,
@@ -56,6 +58,7 @@ class BackupService {
       'finance': finance.map((e) => e.toJson()).toList(),
       'events': events.map((e) => e.toJson()).toList(),
       'documents': documents.map((e) => e.toJson()).toList(),
+      'plans': plans.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -100,6 +103,7 @@ class BackupService {
     final events =
         _parseList(data['events'], CalendarEventEntity.fromJson);
     final documents = _parseList(data['documents'], DocumentEntity.fromJson);
+    final plans = _parseList(data['plans'], PlanEntity.fromJson);
 
     await _isar.writeTxn(() async {
       if (clearExisting) {
@@ -117,6 +121,9 @@ class BackupService {
       await _isar.financeTransactionEntitys.putAll(finance);
       await _isar.calendarEventEntitys.putAll(events);
       await _isar.documentEntitys.putAll(documents);
+      if (plans.isNotEmpty) {
+        await _isar.planEntitys.putAll(plans);
+      }
     });
   }
 

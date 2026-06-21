@@ -24,6 +24,7 @@ class AppStrings {
   static const close = 'Yopish';
   static const all = 'Barchasi';
   static const today = 'Bugun';
+  static const tomorrow = 'Ertaga';
   static const loading = 'Yuklanmoqda...';
   static const noData = 'Ma\'lumot topilmadi';
   static const saved = 'Saqlandi';
@@ -182,9 +183,11 @@ class AppStrings {
 
   // Life hub
   static const lifeHub = 'Hayot markazi';
-
-  // More hub
+  static const lifeHubSubtitle = 'Odatlar, maqsadlar va rivojlanish';
   static const moreHub = 'Qo\'shimcha';
+  static const moreHubSubtitle = 'Eslatmalar, kalendar va AI murabbiy';
+  static const nextEvent = 'Keyingi tadbir';
+  static const noUpcomingEvents = 'Yaqin tadbirlar yo\'q';
 
   // Settings
   static const settings = 'Sozlamalar';
@@ -234,6 +237,13 @@ class AppStrings {
   static const achievements = 'Yutuqlar';
   static const achievementsUnlocked = 'Ochilgan yutuqlar';
   static const commandCenter = 'Shaxsiy markaz';
+  static const todayPlan = 'Bugungi reja';
+  static const mainGoal = 'Asosiy maqsad';
+  static const noMainGoal = 'Maqsad qo\'ying — yo\'lingiz aniq bo\'lsin';
+  static const viewAll = 'Barchasi';
+  static const dayStreak = 'kunlik ketma-ketlik';
+  static const tasksDone = 'Bajarildi';
+  static const momentum = 'Momentum';
   static const goalsProgress = 'Maqsadlar progressi';
   static const studyProgress = 'Ta\'lim progressi';
   static const workoutProgress = 'Mashq progressi';
@@ -258,6 +268,9 @@ class AppStrings {
   static const optimizePlan = 'Optimallashtirish';
   static const confirmPlan = 'Tasdiqlash';
   static const planSaved = 'Reja saqlandi';
+  static const planSaveFailed = 'Reja saqlanmadi. Avval reja yarating.';
+  static const planSavedFor = 'Reja saqlandi:';
+  static const upcomingPlan = 'Yaqinlashayotgan reja';
   static const todaySchedule = 'Bugungi jadval';
   static const noPlanToday = 'Bugun reja yo\'q';
   static const noPlanTodayDesc =
@@ -265,6 +278,9 @@ class AppStrings {
   static const voiceNotAvailable = 'Ovoz tanish mavjud emas';
   static const missed = 'O\'tkazib yuborilgan';
   static const rescheduleTitle = 'Qayta rejalashtirish';
+  static const moveMissedToTomorrow =
+      'O\'tkazib yuborilganlarni ertaga qoldirish';
+  static const dayPlan = 'Kunlik reja';
   static const lifeScore = 'Hayot balli';
   static const scoreHealth = 'Sog\'liq';
   static const scoreLearning = 'O\'qish';

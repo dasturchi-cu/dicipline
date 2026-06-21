@@ -3,11 +3,13 @@ import '../../../core/database/schemas/finance_transaction_entity.dart';
 import '../../../core/database/schemas/goal_entity.dart';
 import '../../../core/database/schemas/habit_entity.dart';
 import '../../../core/database/schemas/journal_entry_entity.dart';
+import '../../../core/database/schemas/plan_entity.dart';
 import '../../../core/database/schemas/task_entity.dart';
 import '../../../core/repositories/finance_repository.dart';
 import '../../../core/repositories/goal_repository.dart';
 import '../../../core/repositories/habit_repository.dart';
 import '../../../core/repositories/journal_repository.dart';
+import '../../../core/repositories/plan_repository.dart';
 import '../../../core/repositories/task_repository.dart';
 
 /// AI murabbiy tavsiyasi.
@@ -39,12 +41,14 @@ class AiCoachService {
     required GoalRepository goalRepository,
     required FinanceRepository financeRepository,
     required JournalRepository journalRepository,
+    required PlanRepository planRepository,
     AiService? aiService,
   })  : _tasks = taskRepository,
         _habits = habitRepository,
         _goals = goalRepository,
         _finance = financeRepository,
         _journal = journalRepository,
+        _plans = planRepository,
         _aiService = aiService;
 
   final TaskRepository _tasks;
@@ -52,6 +56,7 @@ class AiCoachService {
   final GoalRepository _goals;
   final FinanceRepository _finance;
   final JournalRepository _journal;
+  final PlanRepository _plans;
   final AiService? _aiService;
 
   Future<List<AiTip>> generateRecommendations() async {
@@ -60,6 +65,7 @@ class AiCoachService {
     final goals = await _goals.getAll();
     final finance = await _finance.getAll();
     final journalToday = await _journal.getToday();
+    final todayPlan = await _plans.getToday();
 
     final tips = generateFromData(
       tasks: tasks,
@@ -68,6 +74,7 @@ class AiCoachService {
       finance: finance,
       journalToday: journalToday,
       habitRepository: _habits,
+      todayPlan: todayPlan,
     );
 
     final llmTip = await _generateLlmTip(
@@ -76,6 +83,7 @@ class AiCoachService {
       goals: goals,
       finance: finance,
       journalToday: journalToday,
+      todayPlan: todayPlan,
       existingTips: tips,
     );
 
@@ -92,6 +100,7 @@ class AiCoachService {
     required List<GoalEntity> goals,
     required List<FinanceTransactionEntity> finance,
     required JournalEntryEntity? journalToday,
+    required PlanEntity? todayPlan,
     required List<AiTip> existingTips,
   }) async {
     final ai = _aiService ?? AiService.instance;
@@ -123,6 +132,24 @@ class AiCoachService {
       ..writeln('- Past progress maqsadlar: $lowGoals')
       ..writeln('- Moliya balansi: ${balance.toStringAsFixed(0)} so\'m')
       ..writeln('- Kundalik: $journalStatus');
+
+    if (todayPlan != null && todayPlan.items.isNotEmpty) {
+      final now = DateTime.now();
+      final completed = todayPlan.items.where((item) => item.isCompleted).length;
+      final missed = todayPlan.items
+          .where((item) => item.isMissed && !item.isCompleted)
+          .length;
+      final pending = todayPlan.items
+          .where((item) => !item.isCompleted && item.endTime.isAfter(now))
+          .length;
+      context
+        ..writeln('- Bugungi reja bandlari: ${todayPlan.items.length}')
+        ..writeln('- Bajarilgan reja bandlari: $completed')
+        ..writeln('- O\'tkazib yuborilgan reja bandlari: $missed')
+        ..writeln('- Qolgan reja bandlari: $pending');
+    } else {
+      context.writeln('- Bugungi AI reja: yo\'q');
+    }
 
     if (existingTips.isNotEmpty) {
       context.writeln('Mavjud ogohlantirishlar:');
@@ -172,8 +199,10 @@ class AiCoachService {
     required List<FinanceTransactionEntity> finance,
     JournalEntryEntity? journalToday,
     HabitRepository? habitRepository,
+    PlanEntity? todayPlan,
   }) {
     final tips = <AiTip>[
+      ..._planTipsFromData(todayPlan),
       ..._taskTipsFromData(tasks),
       ..._habitTipsFromData(habits, habitRepository),
       ..._goalTipsFromData(goals),
@@ -211,6 +240,43 @@ class AiCoachService {
       journalToday: journalToday,
       habitRepository: habitRepository,
     ).map((tip) => tip.displayText).toList();
+  }
+
+  static List<AiTip> _planTipsFromData(PlanEntity? todayPlan) {
+    if (todayPlan == null || todayPlan.items.isEmpty) {
+      return [];
+    }
+
+    final now = DateTime.now();
+    final missed = todayPlan.items
+        .where((item) => item.isMissed && !item.isCompleted)
+        .length;
+    final pending = todayPlan.items
+        .where((item) => !item.isCompleted && item.endTime.isAfter(now))
+        .length;
+
+    final tips = <AiTip>[];
+    if (missed > 0) {
+      tips.add(
+        AiTip(
+          title: 'O\'tkazib yuborilgan bandlar',
+          description:
+              '$missed ta reja bandi o\'tkazib yuborildi. Qayta rejalashtiring.',
+          actionRoute: '/reja',
+        ),
+      );
+    }
+    if (pending > 0) {
+      tips.add(
+        AiTip(
+          title: 'Bugungi jadval',
+          description:
+              'Bugun $pending ta band qoldi. Jadvalingizga rioya qiling.',
+          actionRoute: '/reja',
+        ),
+      );
+    }
+    return tips;
   }
 
   static List<AiTip> _taskTipsFromData(List<TaskEntity> tasks) {

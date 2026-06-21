@@ -8,6 +8,7 @@ import 'schemas/goal_entity.dart';
 import 'schemas/habit_entity.dart';
 import 'schemas/journal_entry_entity.dart';
 import 'schemas/note_entity.dart';
+import 'schemas/plan_entity.dart';
 import 'schemas/study_session_entity.dart';
 import 'schemas/study_subject_entity.dart';
 import 'schemas/task_entity.dart';
@@ -32,6 +33,7 @@ class IsarService {
     FinanceTransactionEntitySchema,
     CalendarEventEntitySchema,
     DocumentEntitySchema,
+    PlanEntitySchema,
   ];
 
   bool get isOpen => _isar?.isOpen ?? false;

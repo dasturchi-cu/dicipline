@@ -11,6 +11,7 @@ final aiCoachServiceProvider = Provider<AiCoachService>((ref) {
     goalRepository: ref.watch(goalRepositoryProvider),
     financeRepository: ref.watch(financeRepositoryProvider),
     journalRepository: ref.watch(journalRepositoryProvider),
+    planRepository: ref.watch(planRepositoryProvider),
     aiService: ref.watch(aiServiceProvider),
   );
 });

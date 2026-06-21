@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_colors.dart';
+import 'app_feedback.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({
@@ -33,6 +34,7 @@ class AppShell extends StatelessWidget {
   bool _showBottomNav(String location) => _topLevelRoutes.contains(location);
 
   void _onDestinationSelected(BuildContext context, int index) {
+    hapticLight();
     switch (index) {
       case 0:
         context.go('/');
@@ -83,8 +85,8 @@ class AppShell extends StatelessWidget {
                       label: AppStrings.navTasks,
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.favorite_outline_rounded),
-                      selectedIcon: Icon(Icons.favorite_rounded),
+                      icon: Icon(Icons.spa_outlined),
+                      selectedIcon: Icon(Icons.spa_rounded),
                       label: AppStrings.navLife,
                     ),
                     NavigationDestination(

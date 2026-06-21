@@ -3,17 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rejabon_ai/core/constants/app_strings.dart';
+import 'package:rejabon_ai/core/integration/provider_sync.dart';
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
+import 'package:rejabon_ai/features/ai_planning/presentation/providers/ai_planning_provider.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
 import 'package:rejabon_ai/core/utils/display_with_emoji.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
 import 'package:rejabon_ai/core/database/schemas/task_entity.dart';
+import 'package:rejabon_ai/shared/widgets/achievement_celebration.dart';
 import 'package:rejabon_ai/shared/widgets/app_button.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
 import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_feedback.dart';
 import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
 import 'package:rejabon_ai/shared/widgets/emoji_picker_field.dart';
+import 'package:rejabon_ai/shared/widgets/animated_check_button.dart';
+import 'package:rejabon_ai/shared/widgets/fade_in.dart';
+import 'package:rejabon_ai/shared/widgets/filter_pills.dart';
 import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
 import 'package:rejabon_ai/shared/widgets/module_screen.dart';
 
@@ -33,40 +40,98 @@ class TasksListScreen extends ConsumerWidget {
 
     return ModuleScreen(
       title: AppStrings.tasks,
+      showDivider: false,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/vazifalar/yangi'),
         icon: const Icon(Icons.add_rounded),
         label: const Text(AppStrings.addTask),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              0,
-            ),
-            child: SegmentedButton<TaskFilter>(
-              segments: const [
-                ButtonSegment(
-                  value: TaskFilter.all,
-                  label: Text(AppStrings.all),
+          const SizedBox(height: AppSpacing.sm),
+          tasksAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (tasks) {
+              final active = tasks.where((t) => !t.isCompleted).length;
+              final done = tasks.where((t) => t.isCompleted).length;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: FadeIn(
+                  child: AppCard(
+                    variant: AppCardVariant.filled,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$active',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                              Text(
+                                AppStrings.taskActive,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: AppColors.border(
+                            Theme.of(context).brightness,
+                            subtle: true,
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                '$done',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                              Text(
+                                AppStrings.taskCompleted,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                ButtonSegment(
-                  value: TaskFilter.active,
-                  label: Text(AppStrings.taskActive),
-                ),
-                ButtonSegment(
-                  value: TaskFilter.completed,
-                  label: Text(AppStrings.taskCompleted),
-                ),
-              ],
-              selected: {filter},
-              onSelectionChanged: (s) =>
-                  ref.read(taskFilterProvider.notifier).state = s.first,
-            ),
+              );
+            },
           ),
+          const SizedBox(height: AppSpacing.sm),
+          FilterPills<TaskFilter>(
+            options: TaskFilter.values,
+            selected: filter,
+            onSelected: (f) =>
+                ref.read(taskFilterProvider.notifier).state = f,
+            labelBuilder: (f) => switch (f) {
+              TaskFilter.all => AppStrings.all,
+              TaskFilter.active => AppStrings.taskActive,
+              TaskFilter.completed => AppStrings.taskCompleted,
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: tasksAsync.when(
               loading: () => const AppLoadingState(),
@@ -97,7 +162,10 @@ class TasksListScreen extends ConsumerWidget {
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final task = filtered[index];
-                    return _TaskListTile(task: task);
+                    return FadeIn(
+                      index: index,
+                      child: _TaskListTile(task: task),
+                    );
                   },
                 );
               },
@@ -143,13 +211,23 @@ class _TaskListTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Checkbox(
-                value: task.isCompleted,
-                activeColor: AppColors.primary,
+              AnimatedCheckButton(
+                checked: task.isCompleted,
+                celebrateOnCheck: true,
                 onChanged: (_) async {
-                  await repo.toggleComplete(task);
+                  final wasCompleted = task.isCompleted;
+                  final updated = await repo.toggleComplete(task);
+                  if (updated != null) {
+                    await syncTaskWithPlan(ref, updated);
+                    invalidateDerivedProviders(ref);
+                  }
+                  if (context.mounted && !wasCompleted) {
+                    showCompletedSnackBar(context);
+                    await celebrateNewAchievements(ref, context);
+                  }
                 },
               ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

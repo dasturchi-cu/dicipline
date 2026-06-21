@@ -8,10 +8,14 @@ import 'package:rejabon_ai/core/database/schemas/finance_transaction_entity.dart
 import 'package:rejabon_ai/core/providers/repository_providers.dart';
 import 'package:rejabon_ai/core/theme/app_colors.dart';
 import 'package:rejabon_ai/core/utils/date_format.dart';
+import 'package:rejabon_ai/shared/widgets/app_bottom_sheet.dart';
+import 'package:rejabon_ai/shared/widgets/app_button.dart';
 import 'package:rejabon_ai/shared/widgets/app_card.dart';
 import 'package:rejabon_ai/shared/widgets/app_empty_state.dart';
 import 'package:rejabon_ai/shared/widgets/app_error_state.dart';
+import 'package:rejabon_ai/shared/widgets/app_feedback.dart';
 import 'package:rejabon_ai/shared/widgets/app_loading_state.dart';
+import 'package:rejabon_ai/shared/widgets/fade_in.dart';
 import 'package:rejabon_ai/core/utils/format_money.dart';
 import 'package:rejabon_ai/shared/widgets/app_text_field.dart';
 import 'package:rejabon_ai/shared/widgets/module_screen.dart';
@@ -47,49 +51,54 @@ class FinanceScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              AppCard(
-                variant: AppCardVariant.filled,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.balance,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: AppColors.primary,
+              FadeIn(
+                child: AppCard(
+                  variant: AppCardVariant.gradient,
+                  gradientColors: balance >= 0
+                      ? AppColors.momentumGradient
+                      : [AppColors.error, const Color(0xFFDC2626)],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppStrings.balance.toUpperCase(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              letterSpacing: 0.8,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        formatMoney(balance),
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SummaryItem(
+                              label: AppStrings.totalIncome,
+                              value: formatMoney(income),
+                              color: Colors.white,
+                              light: true,
+                            ),
                           ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      formatMoney(balance),
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: balance >= 0
-                                    ? AppColors.success
-                                    : AppColors.error,
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _SummaryItem(
-                            label: AppStrings.totalIncome,
-                            value: formatMoney(income),
-                            color: AppColors.success,
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: _SummaryItem(
+                              label: AppStrings.totalExpense,
+                              value: formatMoney(expense),
+                              color: Colors.white.withValues(alpha: 0.9),
+                              light: true,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _SummaryItem(
-                            label: AppStrings.totalExpense,
-                            value: formatMoney(expense),
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -156,23 +165,32 @@ class _SummaryItem extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.light = false,
   });
 
   final String label;
   final String value;
   final Color color;
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: light
+                    ? Colors.white.withValues(alpha: 0.8)
+                    : AppColors.textSecondary(Theme.of(context).brightness),
+              ),
+        ),
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: color,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
         ),
       ],
@@ -329,14 +347,18 @@ Future<void> _showTransactionDialog(
   var category = categories.first;
   final formKey = GlobalKey<FormState>();
 
-  await showDialog<void>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setDialogState) => AlertDialog(
-        title: Text(
-          type == 0 ? AppStrings.newIncome : AppStrings.newExpense,
+  await showAppBottomSheet<void>(
+    context,
+    title: type == 0 ? AppStrings.newIncome : AppStrings.newExpense,
+    child: StatefulBuilder(
+      builder: (ctx, setDialogState) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.md,
         ),
-        content: Form(
+        child: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -366,38 +388,37 @@ Future<void> _showTransactionDialog(
                 controller: descCtrl,
                 label: AppStrings.description,
               ),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: AppStrings.save,
+                isExpanded: true,
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  await ref.read(financeRepositoryProvider).save(
+                        FinanceTransactionEntity.create(
+                          type: type,
+                          amount: double.parse(amountCtrl.text),
+                          category: category,
+                          description: descCtrl.text.trim().isEmpty
+                              ? null
+                              : descCtrl.text.trim(),
+                        ),
+                      );
+                  if (!ctx.mounted) return;
+                  Navigator.pop(ctx);
+                  if (context.mounted) {
+                    showSavedSnackBar(context);
+                  }
+                },
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(AppStrings.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              await ref.read(financeRepositoryProvider).save(
-                    FinanceTransactionEntity.create(
-                      type: type,
-                      amount: double.parse(amountCtrl.text),
-                      category: category,
-                      description: descCtrl.text.trim().isEmpty
-                          ? null
-                          : descCtrl.text.trim(),
-                    ),
-                  );
-              if (context.mounted) {
-                showSavedSnackBar(context);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text(AppStrings.save),
-          ),
-        ],
       ),
     ),
   );
-  amountCtrl.dispose();
-  descCtrl.dispose();
+  deferDispose(() {
+    amountCtrl.dispose();
+    descCtrl.dispose();
+  });
 }
